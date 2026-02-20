@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(node:*)",
+      "Bash(pkill:*)",
+      "Bash(timeout:*)",
+      "Bash(git reset:*)",
+      "Bash(ls:*)",
+      "Bash(npx skills add:*)",
+      "Bash(python3:*)",
+      "Read(//c/Users/ziyiz/.agents/skills/ui-ux-pro-max/**)",
+      "Read(//c/Users/ziyiz/.agents/**)",
+      "Bash(npx skills check)",
+      "Read(//c/Users/ziyiz/.claude/skills//**)",
+      "Bash(git clone:*)",
+      "Read(//c/Users/ziyiz/.claude/skills/**)",
+      "Bash(git restore:*)"
+    ],
+    "additionalDirectories": [
+      "E:\\海龟汤",
+      "C:\\Users\\ziyiz\\.claude\\skills\\ui-ux-pro-max"
+    ]
+  }
+}

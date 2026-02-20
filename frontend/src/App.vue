@@ -33,7 +33,7 @@
       <div class="container">
         <p>海龟汤 - 情境猜谜游戏 &copy; {{ new Date().getFullYear() }}</p>
         <p class="footer-links">
-          <a href="https://github.com/yourusername/turtle-soup" target="_blank">GitHub</a>
+          <a href="https://github.com/Ziyi-ZHU-1027/turtle-soup-game/" target="_blank">GitHub</a>
           <a href="/privacy">隐私政策</a>
           <a href="/terms">使用条款</a>
         </p>
