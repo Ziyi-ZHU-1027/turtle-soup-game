@@ -1,0 +1,157 @@
+-- 海龟汤数据库初始表结构（修正版）
+-- 迁移: 001_initial_schema_fixed
+-- 修复了权限问题，移除了ALTER DATABASE SET语句
+
+-- puzzles表：存储海龟汤谜题
+CREATE TABLE IF NOT EXISTS puzzles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,  -- 汤面
+  solution TEXT NOT NULL,     -- 汤底（绝密）
+  difficulty INTEGER CHECK (difficulty >= 1 AND difficulty <= 5) DEFAULT 3,
+  tags TEXT[] DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
+
+-- 为puzzles表添加索引
+CREATE INDEX IF NOT EXISTS idx_puzzles_difficulty ON puzzles(difficulty);
+CREATE INDEX IF NOT EXISTS idx_puzzles_created_at ON puzzles(created_at);
+CREATE INDEX IF NOT EXISTS idx_puzzles_tags ON puzzles USING GIN(tags);
+
+-- game_sessions表：游戏会话
+CREATE TABLE IF NOT EXISTS game_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  puzzle_id UUID NOT NULL REFERENCES puzzles(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'abandoned')),
+  start_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  end_time TIMESTAMP WITH TIME ZONE,
+  consecutive_no_count INTEGER DEFAULT 0,  -- 连续"不是"计数
+  last_progress_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),  -- 最后进展时间
+  hints_used TEXT[] DEFAULT '{}',  -- 已使用的提示
+  reveal_requested BOOLEAN DEFAULT FALSE,  -- 是否请求查看汤底
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 为game_sessions表添加索引
+CREATE INDEX IF NOT EXISTS idx_game_sessions_user_id ON game_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_game_sessions_puzzle_id ON game_sessions(puzzle_id);
+CREATE INDEX IF NOT EXISTS idx_game_sessions_status ON game_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_game_sessions_start_time ON game_sessions(start_time);
+
+-- conversations表：对话记录
+CREATE TABLE IF NOT EXISTS conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+  content TEXT NOT NULL,
+  is_correct BOOLEAN,  -- 对于assistant消息，表示回答是否正确（是/不是）
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 为conversations表添加索引
+CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations(created_at);
+CREATE INDEX IF NOT EXISTS idx_conversations_role ON conversations(role);
+
+-- 添加行级安全策略（RLS）
+ALTER TABLE puzzles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+
+-- puzzles表策略：所有用户可读，仅管理员可写
+-- 注意：Supabase中管理员检查可以通过前端环境变量或自定义函数实现
+-- 这里简化为所有人都可以插入，实际应用中应在后端验证
+CREATE POLICY "所有人都可以查看谜题" ON puzzles
+  FOR SELECT USING (true);
+
+CREATE POLICY "任何人都可以添加谜题" ON puzzles
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "任何人都可以更新谜题" ON puzzles
+  FOR UPDATE USING (true);
+
+CREATE POLICY "任何人都可以删除谜题" ON puzzles
+  FOR DELETE USING (true);
+
+-- 在实际部署中，您应该在后端API中验证管理员权限
+-- 而不是依赖数据库层面的RLS，因为Supabase权限限制
+
+-- game_sessions表策略：用户只能访问自己的会话
+CREATE POLICY "用户可以查看自己的会话" ON game_sessions
+  FOR SELECT USING (
+    auth.uid() = user_id OR
+    user_id IS NULL  -- 匿名会话，暂时允许所有人查看
+  );
+
+CREATE POLICY "用户可以创建会话" ON game_sessions
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "用户可以更新自己的会话" ON game_sessions
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- conversations表策略：用户只能访问自己会话的对话
+CREATE POLICY "用户可以查看自己会话的对话" ON conversations
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM game_sessions gs
+      WHERE gs.id = conversations.session_id
+      AND (gs.user_id = auth.uid() OR gs.user_id IS NULL)
+    )
+  );
+
+CREATE POLICY "用户可以添加对话" ON conversations
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM game_sessions gs
+      WHERE gs.id = conversations.session_id
+      AND (gs.user_id = auth.uid() OR gs.user_id IS NULL)
+    )
+  );
+
+-- 更新updated_at的触发器函数
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- 为puzzles表添加触发器
+CREATE TRIGGER update_puzzles_updated_at
+  BEFORE UPDATE ON puzzles
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- 插入一些示例谜题（可选）
+INSERT INTO puzzles (title, description, solution, difficulty, tags) VALUES
+(
+  '深夜的电话',
+  '一个男人深夜接到一个电话，对方什么都没说就挂了。男人随即拿起刀出了门。为什么？',
+  '男人是一名外科医生，深夜的电话是医院的紧急呼叫。他没有说话是因为他喉咙痛失声了。他拿刀是因为手术刀放在医疗包里，他准备去做紧急手术。',
+  3,
+  ARRAY['经典', '职业', '医疗']
+),
+(
+  '雨中的男人',
+  '一个男人在雨中行走，没有打伞，但身上一点都没湿。为什么？',
+  '男人是个雕像，被放置在广场上。下雨时雕像当然不会湿，因为它没有生命。',
+  2,
+  ARRAY['经典', '谜语']
+),
+(
+  '葬礼上的陌生人',
+  '在一场葬礼上，一个女人见到了一个从未见过的英俊男人。她对他一见钟情。几天后，她杀死了自己的姐姐。为什么？',
+  '女人相信那个英俊男人会再次出现在她姐姐的葬礼上，想再见他一面。',
+  4,
+  ARRAY['黑暗', '心理', '经典']
+)
+ON CONFLICT DO NOTHING;
+
+-- 注意：管理员权限管理移至后端应用层
+-- 在后端环境变量中设置管理员邮箱，由后端API验证权限
+-- 例如：ADMIN_EMAILS=admin@example.com,other@example.com
