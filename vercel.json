@@ -1,7 +1,7 @@
 {
   "version": 2,
   "name": "turtle-soup-game",
-  "buildCommand": "cd frontend && npm install && npm run build",
+  "buildCommand": "cd frontend && npm install && npm run build && cd ../backend && npm install",
   "outputDirectory": "frontend/dist",
   "routes": [
     {

@@ -296,3 +296,48 @@ MIT License - 详见LICENSE文件
 ---
 
 **开始你的海龟汤推理之旅吧！** 🐢
+## Vercel Deployment Notes (Monorepo, Updated 2026-02-20)
+
+This repository deploys **frontend static files + backend serverless API** in one Vercel project.
+
+### Required `vercel.json`
+
+```json
+{
+  "version": 2,
+  "name": "turtle-soup-game",
+  "buildCommand": "cd frontend && npm install && npm run build && cd ../backend && npm install",
+  "outputDirectory": "frontend/dist",
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.js" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
+```
+
+### Required Environment Variables (Vercel -> Project -> Settings -> Environment Variables)
+
+Frontend (public, bundled into browser):
+- `VITE_API_URL` = `/api`
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Backend (secret, server-only):
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `DEEPSEEK_API_KEY`
+- `ADMIN_EMAILS` (optional)
+
+After adding or changing variables, you must **Redeploy**.
+
+### Important Security Rule
+
+- Any variable prefixed with `VITE_` is exposed to all browser users.
+- Never put secret keys (e.g. `SUPABASE_SERVICE_ROLE_KEY`, `DEEPSEEK_API_KEY`) into `VITE_*` variables.
+
+### Quick Troubleshooting
+
+- `supabaseUrl is required` (frontend console): missing `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY`.
+- `FUNCTION_INVOCATION_FAILED` (Vercel): backend function crashed, usually missing backend deps/env.
+- `/api/puzzles` returns 500 while `/api/health` is 200: check Supabase project/key mismatch or missing `puzzles` table.
