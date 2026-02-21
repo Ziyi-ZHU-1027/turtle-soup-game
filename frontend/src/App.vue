@@ -1,21 +1,27 @@
 <template>
   <div id="app">
     <header class="app-header">
-      <div class="container">
+      <div class="header-container">
         <router-link to="/" class="logo">
           <span class="logo-icon">🐢</span>
-          <span class="logo-text">海龟汤 <span class="logo-subtitle">AI侦探局</span></span>
+          <span class="logo-text">海龟汤</span>
         </router-link>
         <nav class="nav-links">
           <router-link to="/">首页</router-link>
-          <router-link to="/game" v-if="authStore.user">游戏</router-link>
+          <router-link to="/game" v-if="authStore.isAuthenticated">游戏</router-link>
           <router-link to="/admin" v-if="authStore.isAdmin">管理</router-link>
+        </nav>
+        <div class="header-right">
           <template v-if="authStore.user">
-            <span class="user-email">{{ authStore.user.email }}</span>
-            <button @click="authStore.logout" class="btn-logout">退出</button>
+            <span class="user-email" :title="authStore.user.email">{{ authStore.user.email }}</span>
+            <button @click="handleLogout" class="btn-logout">退出</button>
+          </template>
+          <template v-else-if="authStore.isGuest">
+            <span class="user-email">游客模式</span>
+            <router-link to="/login" class="btn-login">登录</router-link>
           </template>
           <router-link v-else to="/login" class="btn-login">登录</router-link>
-        </nav>
+        </div>
       </div>
     </header>
 
@@ -44,9 +50,26 @@
 
 <script setup>
 import { useAuthStore } from './stores/auth'
-import { onMounted } from 'vue'
+import { useGameStore } from './stores/game'
+import { onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
+const gameStore = useGameStore()
+const router = useRouter()
+
+const handleLogout = async () => {
+  gameStore.resetGame()
+  await authStore.logout()
+  router.push('/')
+}
+
+// 当用户身份变化时（切换账号），重置游戏状态
+watch(() => authStore.user?.id, (newId, oldId) => {
+  if (oldId && newId !== oldId) {
+    gameStore.resetGame()
+  }
+})
 
 onMounted(() => {
   console.log('App mounted')
@@ -61,53 +84,52 @@ onMounted(() => {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--glass-border);
-  padding: 1rem 0;
+  padding: 0.75rem 0;
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
-.container {
+.header-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1rem;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 1rem;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   text-decoration: none;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: bold;
   color: var(--accent-gold);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .logo-icon {
-  font-size: 1.8rem;
-}
-
-.logo-subtitle {
-  font-size: 0.7em;
-  color: var(--text-muted);
-  font-weight: 400;
+  font-size: 1.5rem;
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .nav-links a {
   color: var(--text-secondary);
   text-decoration: none;
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.75rem;
   border-radius: 6px;
   transition: background-color 0.3s;
+  white-space: nowrap;
+  font-size: 0.9rem;
 }
 
 .nav-links a:hover {
@@ -119,24 +141,73 @@ onMounted(() => {
   background-color: rgba(212, 175, 55, 0.08);
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  min-width: 0;
+}
+
 .user-email {
   color: var(--text-muted);
-  font-size: 0.9rem;
-  margin-right: 0.5rem;
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
 }
 
 .btn-logout, .btn-login {
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.75rem;
   border: 1px solid rgba(212, 175, 55, 0.3);
   background: transparent;
   color: var(--accent-gold);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  flex-shrink: 0;
 }
 
 .btn-logout:hover, .btn-login:hover {
   background-color: rgba(212, 175, 55, 0.08);
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .header-container {
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+  }
+
+  .logo {
+    font-size: 1.1rem;
+    gap: 0.3rem;
+  }
+
+  .logo-icon {
+    font-size: 1.3rem;
+  }
+
+  .nav-links {
+    gap: 0.1rem;
+  }
+
+  .nav-links a {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .user-email {
+    display: none;
+  }
+
+  .btn-logout, .btn-login {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
+  }
 }
 
 .app-main {

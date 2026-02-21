@@ -7,7 +7,7 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const error = ref(null)
 
-  const isAuthenticated = computed(() => !!user.value)
+  const isAuthenticated = computed(() => !!user.value || isGuest.value)
   const isAdmin = computed(() => {
     if (!user.value?.email) return false
     const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || []
@@ -82,6 +82,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // 游客模式
+  const isGuest = ref(false)
+
+  const loginAsGuest = () => {
+    isGuest.value = true
+  }
+
   // 登出
   const logout = async () => {
     loading.value = true
@@ -89,6 +96,7 @@ export const useAuthStore = defineStore('auth', () => {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
       user.value = null
+      isGuest.value = false
     } catch (err) {
       error.value = err.message
       console.error('登出失败:', err)
@@ -109,8 +117,10 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     isAdmin,
+    isGuest,
     initialize,
     login,
+    loginAsGuest,
     register,
     logout
   }

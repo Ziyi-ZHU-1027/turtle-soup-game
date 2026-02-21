@@ -51,9 +51,9 @@
                     </span>
                   </td>
                   <td>{{ formatDate(puzzle.created_at) }}</td>
-                  <td>
-                    <button class="btn-edit">编辑</button>
-                    <button class="btn-delete">删除</button>
+                  <td class="action-cell">
+                    <button class="btn-edit" @click="openEditForm(puzzle)">编辑</button>
+                    <button class="btn-delete" @click="openDeleteConfirm(puzzle)">删除</button>
                   </td>
                 </tr>
               </tbody>
@@ -182,6 +182,134 @@
         </div>
       </div>
     </div>
+    <!-- 编辑谜题弹窗 -->
+    <div v-if="showEditForm" class="modal-overlay" @click="showEditForm = false">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>编辑谜题</h3>
+          <button class="modal-close" @click="showEditForm = false">×</button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="handleEditSubmit" class="add-puzzle-form">
+            <div v-if="editError" class="error-message">
+              {{ editError }}
+            </div>
+
+            <div class="form-group">
+              <label for="edit-title">谜题标题 *</label>
+              <input
+                id="edit-title"
+                v-model="editForm.title"
+                type="text"
+                required
+                :disabled="editLoading"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="edit-description">汤面描述 *</label>
+              <textarea
+                id="edit-description"
+                v-model="editForm.description"
+                required
+                rows="4"
+                :disabled="editLoading"
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="edit-solution">汤底答案 *</label>
+              <textarea
+                id="edit-solution"
+                v-model="editForm.solution"
+                required
+                rows="4"
+                :disabled="editLoading"
+              ></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="edit-difficulty">难度等级</label>
+                <select id="edit-difficulty" v-model="editForm.difficulty" :disabled="editLoading">
+                  <option :value="1">⭐ 非常简单</option>
+                  <option :value="2">⭐⭐ 简单</option>
+                  <option :value="3">⭐⭐⭐ 中等</option>
+                  <option :value="4">⭐⭐⭐⭐ 困难</option>
+                  <option :value="5">⭐⭐⭐⭐⭐ 非常困难</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="edit-tags">标签</label>
+                <input
+                  id="edit-tags"
+                  v-model="editTagsInput"
+                  type="text"
+                  placeholder="经典,职业,医疗"
+                  :disabled="editLoading"
+                >
+                <div class="field-help">用逗号分隔多个标签</div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button
+                type="button"
+                @click="showEditForm = false"
+                :disabled="editLoading"
+                class="btn-secondary"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                :disabled="editLoading || !isEditFormValid"
+                class="btn-primary"
+              >
+                <span v-if="editLoading">保存中...</span>
+                <span v-else>保存修改</span>
+              </button>
+            </div>
+
+            <div v-if="editSuccessMessage" class="success-message">
+              {{ editSuccessMessage }}
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div v-if="showDeleteConfirm" class="modal-overlay" @click="showDeleteConfirm = false">
+      <div class="modal-content modal-small" @click.stop>
+        <div class="modal-header">
+          <h3>确认删除</h3>
+          <button class="modal-close" @click="showDeleteConfirm = false">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="delete-warning">确定要删除谜题「{{ deletingPuzzle?.title }}」吗？此操作不可撤销。</p>
+          <div v-if="deleteError" class="error-message">{{ deleteError }}</div>
+          <div class="form-actions">
+            <button
+              class="btn-secondary"
+              @click="showDeleteConfirm = false"
+              :disabled="deleteLoading"
+            >
+              取消
+            </button>
+            <button
+              class="btn-danger"
+              @click="handleDelete"
+              :disabled="deleteLoading"
+            >
+              <span v-if="deleteLoading">删除中...</span>
+              <span v-else>确认删除</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -192,6 +320,110 @@ import { usePuzzleStore } from '@/stores/puzzles'
 const puzzleStore = usePuzzleStore()
 const activeTab = ref('puzzles')
 const showAddForm = ref(false)
+
+// 编辑相关状态
+const showEditForm = ref(false)
+const editingPuzzleId = ref(null)
+const editForm = ref({
+  title: '',
+  description: '',
+  solution: '',
+  difficulty: 3,
+  tags: []
+})
+const editTagsInput = ref('')
+const editLoading = ref(false)
+const editError = ref('')
+const editSuccessMessage = ref('')
+
+const isEditFormValid = computed(() => {
+  return editForm.value.title.trim() !== '' &&
+         editForm.value.description.trim() !== '' &&
+         editForm.value.solution.trim() !== ''
+})
+
+// 监听编辑标签输入
+watch(editTagsInput, (newValue) => {
+  if (newValue.trim() === '') {
+    editForm.value.tags = []
+  } else {
+    editForm.value.tags = newValue.split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+  }
+})
+
+// 打开编辑弹窗
+const openEditForm = (puzzle) => {
+  editingPuzzleId.value = puzzle.id
+  editForm.value = {
+    title: puzzle.title || '',
+    description: puzzle.description || '',
+    solution: puzzle.solution || '',
+    difficulty: puzzle.difficulty || 3,
+    tags: Array.isArray(puzzle.tags) ? [...puzzle.tags] : []
+  }
+  editTagsInput.value = Array.isArray(puzzle.tags) ? puzzle.tags.join(', ') : ''
+  editError.value = ''
+  editSuccessMessage.value = ''
+  showEditForm.value = true
+}
+
+// 编辑提交
+const handleEditSubmit = async () => {
+  editLoading.value = true
+  editError.value = ''
+  editSuccessMessage.value = ''
+
+  try {
+    await puzzleStore.updatePuzzle(editingPuzzleId.value, {
+      title: editForm.value.title,
+      description: editForm.value.description,
+      solution: editForm.value.solution,
+      difficulty: parseInt(editForm.value.difficulty),
+      tags: editForm.value.tags
+    })
+
+    editSuccessMessage.value = '谜题更新成功！'
+    setTimeout(() => {
+      showEditForm.value = false
+      puzzleStore.fetchPuzzles()
+    }, 1000)
+  } catch (err) {
+    console.error('更新谜题失败:', err)
+    editError.value = err.message || '更新谜题失败，请重试'
+  } finally {
+    editLoading.value = false
+  }
+}
+
+// 删除相关状态
+const showDeleteConfirm = ref(false)
+const deletingPuzzle = ref(null)
+const deleteLoading = ref(false)
+const deleteError = ref('')
+
+const openDeleteConfirm = (puzzle) => {
+  deletingPuzzle.value = puzzle
+  deleteError.value = ''
+  showDeleteConfirm.value = true
+}
+
+const handleDelete = async () => {
+  deleteLoading.value = true
+  deleteError.value = ''
+
+  try {
+    await puzzleStore.deletePuzzle(deletingPuzzle.value.id)
+    showDeleteConfirm.value = false
+    deletingPuzzle.value = null
+  } catch (err) {
+    console.error('删除谜题失败:', err)
+    deleteError.value = err.message || '删除谜题失败，请重试'
+  } finally {
+    deleteLoading.value = false
+  }
+}
 
 // 表单数据
 const form = ref({
@@ -518,6 +750,43 @@ onMounted(async () => {
 
 .btn-delete:hover {
   background-color: rgba(231, 76, 60, 0.2);
+}
+
+.action-cell {
+  white-space: nowrap;
+}
+
+.modal-small {
+  max-width: 450px;
+}
+
+.delete-warning {
+  color: #e0e0e0;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.btn-danger {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+}
+
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .modal-overlay {

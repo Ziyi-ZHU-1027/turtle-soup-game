@@ -22,9 +22,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // 辅助函数：获取带认证的Headers
 export const getAuthHeaders = async () => {
-  const { data: { session } } = await supabase.auth.getSession()
+  // 先尝试刷新 session，确保 access_token 没有过期
+  const { data: { session }, error } = await supabase.auth.refreshSession()
+
   const headers = {
     'Content-Type': 'application/json'
+  }
+
+  if (error) {
+    // 刷新失败时回退到 getSession
+    const { data: { session: cachedSession } } = await supabase.auth.getSession()
+    if (cachedSession?.access_token) {
+      headers['Authorization'] = `Bearer ${cachedSession.access_token}`
+    }
+    return headers
   }
 
   // 只在有token时添加Authorization头

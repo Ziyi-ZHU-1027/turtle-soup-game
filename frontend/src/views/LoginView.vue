@@ -242,7 +242,7 @@ const handleSubmit = async () => {
 }
 
 const continueAsGuest = () => {
-  alert('以游客身份继续，部分功能将受限')
+  authStore.loginAsGuest()
   router.push('/game')
 }
 </script>
