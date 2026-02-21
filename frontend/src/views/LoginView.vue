@@ -23,6 +23,9 @@
 
       <div class="login-form">
         <form @submit.prevent="handleSubmit">
+          <div v-if="error" class="error-message">
+            {{ error }}
+          </div>
           <div v-if="activeTab === 'register'" class="form-group">
             <label for="name">用户名</label>
             <input
@@ -130,11 +133,15 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
+
 const activeTab = ref('login')
 const showPassword = ref(false)
 const loading = ref(false)
+const error = ref('')
 
 const form = reactive({
   name: '',
@@ -147,38 +154,88 @@ const form = reactive({
 const handleSubmit = async () => {
   if (loading.value) return
 
+  // 重置错误信息
+  error.value = ''
+
   // 表单验证
   if (activeTab.value === 'register') {
     if (form.password !== form.confirmPassword) {
-      alert('两次输入的密码不一致')
+      error.value = '两次输入的密码不一致'
       return
     }
     if (form.password.length < 6) {
-      alert('密码至少需要6个字符')
+      error.value = '密码至少需要6个字符'
       return
     }
+    if (!form.name.trim()) {
+      error.value = '请输入用户名'
+      return
+    }
+  }
+
+  if (!form.email.trim()) {
+    error.value = '请输入邮箱'
+    return
+  }
+
+  if (!form.password.trim()) {
+    error.value = '请输入密码'
+    return
   }
 
   loading.value = true
 
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
     if (activeTab.value === 'login') {
-      console.log('登录:', { email: form.email, remember: form.remember })
-      // 这里应该调用实际的登录API
-      alert('登录成功！')
-      router.push('/')
+      // 调用真实登录API
+      const result = await authStore.login(form.email, form.password)
+
+      if (result.success) {
+        console.log('登录成功:', result.user)
+
+        // 检查是否为管理员
+        if (authStore.isAdmin) {
+          console.log('管理员登录成功，跳转到管理后台')
+          router.push('/admin')
+        } else {
+          console.log('普通用户登录成功，跳转到首页')
+          router.push('/')
+        }
+      } else {
+        error.value = result.error || '登录失败，请检查邮箱和密码'
+      }
     } else {
-      console.log('注册:', { name: form.name, email: form.email })
-      // 这里应该调用实际的注册API
-      alert('注册成功！请检查邮箱验证')
-      activeTab.value = 'login'
+      // 调用真实注册API
+      const result = await authStore.register(form.email, form.password, form.name)
+
+      if (result.success) {
+        console.log('注册成功:', result.user)
+
+        if (result.needsConfirmation) {
+          error.value = '注册成功！请检查邮箱验证邮件'
+        } else {
+          // 自动登录成功
+          if (authStore.isAdmin) {
+            router.push('/admin')
+          } else {
+            router.push('/')
+          }
+        }
+
+        // 切换到登录标签
+        activeTab.value = 'login'
+        // 清空表单
+        form.name = ''
+        form.email = ''
+        form.password = ''
+        form.confirmPassword = ''
+      } else {
+        error.value = result.error || '注册失败，请重试'
+      }
     }
-  } catch (error) {
-    console.error('认证错误:', error)
-    alert('操作失败，请重试')
+  } catch (err) {
+    console.error('认证错误:', err)
+    error.value = err.message || '操作失败，请重试'
   } finally {
     loading.value = false
   }
@@ -455,6 +512,16 @@ const continueAsGuest = () => {
   color: var(--accent-green);
   position: absolute;
   left: 0;
+}
+
+.error-message {
+  background-color: rgba(231, 76, 60, 0.1);
+  border: 1px solid #e74c3c;
+  border-radius: 6px;
+  padding: 1rem;
+  color: #e74c3c;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 640px) {

@@ -17,7 +17,8 @@
       "Bash(git clone:*)",
       "Read(//c/Users/ziyiz/.claude/skills/**)",
       "Bash(git restore:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git add:*)"
     ],
     "additionalDirectories": [
       "E:\\海龟汤",

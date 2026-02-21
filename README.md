@@ -342,3 +342,20 @@ After adding or changing variables, you must **Redeploy**.
 - `supabaseUrl is required` (frontend console): missing `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY`.
 - `FUNCTION_INVOCATION_FAILED` (Vercel): backend function crashed, usually missing backend deps/env.
 - `/api/puzzles` returns 500 while `/api/health` is 200: check Supabase project/key mismatch or missing `puzzles` table.
+
+## 更新日志
+
+### 2026-02-21
+- **增强认证系统**: 实现完整的用户登录/注册流程，集成Supabase Auth
+- **路由守卫**: 添加认证检查，保护需要登录和管理员权限的路由
+- **管理员后台**: 实现完整的谜题管理界面，支持添加/编辑/删除谜题
+- **表单验证**: 为登录、注册和谜题添加表单添加客户端验证
+- **数据导入工具**: 添加JSON数据导入脚本和示例谜题数据
+- **文档更新**: 添加GitHub登录管理指南和数据导入说明
+
+### 2026-02-20
+- **Vercel部署**: 添加monorepo部署配置和部署指南
+- **环境变量安全**: 明确区分前端(VITE_)和后端环境变量
+
+### 早期版本
+- **初始版本**: 基础海龟汤游戏功能，AI集成，响应式设计
