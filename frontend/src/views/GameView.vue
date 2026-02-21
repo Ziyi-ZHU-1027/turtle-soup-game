@@ -8,60 +8,59 @@
 
     <div class="game-container">
       <div class="sidebar">
-        <div class="puzzle-list">
-          <h3>谜题库</h3>
-          <div class="loading" v-if="puzzleStore.loading">
-            加载中...
+        <div class="puzzle-list" :class="{ 'is-collapsed': puzzleListCollapsed && gameStore.currentSession }">
+          <!-- 收起状态：只显示当前谜题摘要 -->
+          <div
+            v-if="puzzleListCollapsed && gameStore.currentSession"
+            class="puzzle-collapsed-bar"
+            @click="puzzleListCollapsed = false"
+          >
+            <span class="collapsed-label">📂 谜题库</span>
+            <span class="collapsed-current">{{ gameStore.currentPuzzle?.title }}</span>
+            <span class="collapsed-toggle">▼</span>
           </div>
-          <div class="error" v-else-if="puzzleStore.error">
-            加载失败: {{ puzzleStore.error }}
-            <button @click="loadPuzzles">重试</button>
-          </div>
-          <div class="puzzle-items" v-else>
-            <div
-              v-for="puzzle in puzzleStore.puzzles"
-              :key="puzzle.id"
-              class="puzzle-item"
-              :class="{ active: selectedPuzzleId === puzzle.id }"
-              @click="selectPuzzle(puzzle)"
-              :disabled="gameStore.currentSession"
-            >
-              <h4>{{ puzzle.title }}</h4>
-              <div class="puzzle-meta">
-                <span class="difficulty">难度: {{ puzzleStore.getDifficultyStars(puzzle.difficulty) }}</span>
-                <span class="tags">{{ puzzle.tags?.join(', ') }}</span>
+
+          <!-- 展开状态 -->
+          <template v-else>
+            <h3>
+              谜题库
+              <button
+                v-if="gameStore.currentSession"
+                class="btn-collapse-list"
+                @click="puzzleListCollapsed = true"
+                title="收起"
+              >▲</button>
+            </h3>
+            <div class="loading" v-if="puzzleStore.loading">
+              加载中...
+            </div>
+            <div class="error" v-else-if="puzzleStore.error">
+              加载失败: {{ puzzleStore.error }}
+              <button @click="loadPuzzles">重试</button>
+            </div>
+            <div class="puzzle-items" v-else>
+              <div
+                v-for="puzzle in puzzleStore.puzzles"
+                :key="puzzle.id"
+                class="puzzle-item"
+                :class="{ active: selectedPuzzleId === puzzle.id }"
+                @click="selectPuzzle(puzzle)"
+                :disabled="gameStore.currentSession"
+              >
+                <h4>{{ puzzle.title }}</h4>
+                <div class="puzzle-meta">
+                  <span class="difficulty">难度: {{ puzzleStore.getDifficultyStars(puzzle.difficulty) }}</span>
+                  <span class="tags">{{ puzzle.tags?.join(', ') }}</span>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- 游戏控制 -->
-        <div class="game-controls" v-if="gameStore.currentSession">
-          <div class="control-section">
-            <h4>游戏控制</h4>
-            <div class="control-buttons">
-              <button @click="revealSolution" :disabled="gameStore.loading" class="btn-reveal">
-                🍲 查看汤底
-              </button>
-              <button @click="surrenderGame" :disabled="gameStore.loading" class="btn-surrender">
-                🏳️ 放弃游戏
-              </button>
-              <button @click="resetGame" :disabled="gameStore.loading" class="btn-reset">
-                🔄 重新开始
-              </button>
-            </div>
-            <div class="game-stats" v-if="gameStore.currentSession">
-              <p>提问次数: {{ gameStore.getQuestionCount() }}</p>
-              <p v-if="hintMessage" class="hint-message">{{ hintMessage }}</p>
-            </div>
-          </div>
+          </template>
         </div>
       </div>
 
       <div class="main-content">
         <!-- 游戏区域 -->
         <div v-if="gameStore.currentSession" class="game-area">
-          <!-- 使用ChatInterface组件 -->
           <ChatInterface
             :puzzle="gameStore.currentPuzzle"
             :messages="gameStore.messages"
@@ -74,6 +73,7 @@
             @send-message="handleSendMessage"
             @hint-action="handleHintAction"
             @reveal="revealSolution"
+            @surrender="surrenderGame"
             @new-game="resetGame"
             @hint-request="handleHintRequest"
           />
@@ -107,6 +107,7 @@ const authStore = useAuthStore()
 
 const selectedPuzzleId = ref(null)
 const hintMessage = ref('')
+const puzzleListCollapsed = ref(true)
 
 // 加载谜题列表
 const loadPuzzles = async () => {
@@ -164,9 +165,9 @@ const handleHintRequest = () => {
   }
 }
 
-// 查看汤底
+// 查看汤底（ChatInterface 已弹出确认）
 const revealSolution = async () => {
-  if (!gameStore.currentSession || !confirm('确定要查看汤底吗？游戏将结束。')) return
+  if (!gameStore.currentSession) return
 
   try {
     await gameStore.revealSolution(gameStore.currentSession.id)
@@ -176,9 +177,9 @@ const revealSolution = async () => {
   }
 }
 
-// 放弃游戏
+// 放弃游戏（ChatInterface 已弹出确认）
 const surrenderGame = async () => {
-  if (!gameStore.currentSession || !confirm('确定要放弃游戏吗？')) return
+  if (!gameStore.currentSession) return
 
   try {
     await gameStore.surrenderGame(gameStore.currentSession.id)
@@ -277,6 +278,66 @@ onMounted(() => {
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-collapse-list {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  transition: all 0.3s;
+}
+
+.btn-collapse-list:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+/* 收起状态的谜题库 */
+.puzzle-list.is-collapsed {
+  padding: 0;
+  margin-bottom: 0.75rem;
+}
+
+.puzzle-collapsed-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.puzzle-collapsed-bar:hover {
+  background-color: rgba(212, 175, 55, 0.05);
+}
+
+.collapsed-label {
+  color: var(--accent-gold);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.collapsed-current {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collapsed-toggle {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  flex-shrink: 0;
 }
 
 .loading {
@@ -361,90 +422,6 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.game-controls {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  padding: 1.5rem;
-}
-
-.control-section h4 {
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.control-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.control-buttons button {
-  padding: 0.75rem;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.control-buttons button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-reveal {
-  background: linear-gradient(135deg, #8a7535, var(--accent-gold));
-  color: var(--bg-primary);
-}
-
-.btn-reveal:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--accent-gold), #8a7535);
-}
-
-.btn-surrender {
-  background-color: transparent;
-  border: 1px solid var(--text-muted) !important;
-  color: var(--text-muted);
-}
-
-.btn-surrender:hover:not(:disabled) {
-  background-color: rgba(128, 133, 150, 0.08);
-}
-
-.btn-reset {
-  background-color: transparent;
-  border: 1px solid rgba(212, 175, 55, 0.3) !important;
-  color: var(--accent-gold);
-}
-
-.btn-reset:hover:not(:disabled) {
-  background-color: rgba(212, 175, 55, 0.08);
-}
-
-.game-stats {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-}
-
-.game-stats p {
-  margin: 0.25rem 0;
-}
-
-.hint-message {
-  color: var(--accent-gold);
-  background-color: rgba(212, 175, 55, 0.08);
-  padding: 0.5rem;
-  border-radius: 6px;
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
 }
 
 .main-content {

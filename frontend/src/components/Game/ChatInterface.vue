@@ -31,13 +31,13 @@
         >
           <MessageBubble
             :message="message"
-            :is-streaming="isStreaming && message.id === 'streaming'"
+            :is-streaming="streaming && message.isStreaming === true"
             :streamed-content="streamedContent"
           />
         </div>
 
         <!-- 加载指示器 -->
-        <div v-if="loading" class="loading-indicator">
+        <div v-if="loading && !streaming" class="loading-indicator">
           <div class="typing-indicator">
             <span></span>
             <span></span>
@@ -104,9 +104,18 @@
           </button>
           <button
             type="button"
+            class="btn-surrender"
+            @click="surrenderGame"
+            :disabled="loading"
+            title="放弃游戏"
+          >
+            🏳️ 放弃
+          </button>
+          <button
+            type="button"
             class="btn-new-game"
             @click="newGame"
-            title="新游戏"
+            title="换一题"
           >
             ↩ 换一题
           </button>
@@ -159,6 +168,7 @@ const emit = defineEmits([
   'send-message',
   'hint-action',
   'reveal',
+  'surrender',
   'new-game',
   'hint-request'
 ])
@@ -256,6 +266,13 @@ const onHintAction = () => {
 const showRevealConfirm = () => {
   if (confirm('确定要查看汤底吗？一旦查看就无法回头了哦！')) {
     emit('reveal')
+  }
+}
+
+// 放弃游戏
+const surrenderGame = () => {
+  if (confirm('确定要放弃游戏吗？')) {
+    emit('surrender')
   }
 }
 
@@ -578,7 +595,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
@@ -619,15 +636,28 @@ onUnmounted(() => {
   background-color: rgba(230, 57, 70, 0.08) !important;
 }
 
+.btn-surrender {
+  border-color: var(--text-muted) !important;
+  color: var(--text-muted) !important;
+}
+
+.btn-surrender:hover:not(:disabled) {
+  background-color: rgba(128, 133, 150, 0.08) !important;
+}
+
 @media (max-width: 640px) {
   .input-actions {
-    flex-direction: column;
-    align-items: stretch;
+    gap: 0.4rem;
+  }
+
+  .input-actions button {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.78rem;
   }
 
   .question-count {
-    text-align: center;
-    margin: 0.5rem 0;
+    font-size: 0.78rem;
+    margin: 0 0.25rem;
   }
 
   .tangmian-body {

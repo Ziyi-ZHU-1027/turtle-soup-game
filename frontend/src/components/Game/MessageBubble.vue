@@ -9,7 +9,8 @@
     <div class="message-content">
       <!-- 消息头 -->
       <div class="message-header">
-        <span class="message-role">{{ roleLabel }}</span>
+        <span class="message-role">{{ roleName }}</span>
+        <span v-if="responseTag" class="response-tag" :class="`tag-${message.responseType}`">{{ responseTag }}</span>
         <span v-if="message.timestamp" class="message-time">{{ formatTime(message.timestamp) }}</span>
       </div>
 
@@ -17,8 +18,13 @@
       <div class="message-body">
         <!-- 流式输出 -->
         <div v-if="isStreaming" class="streaming-content">
-          <span>{{ streamedContent }}</span>
-          <span class="streaming-cursor"></span>
+          <template v-if="streamedContent">
+            <span>{{ streamedContent }}</span>
+            <span class="streaming-cursor"></span>
+          </template>
+          <div v-else class="typing-dots">
+            <span></span><span></span><span></span>
+          </div>
         </div>
         <!-- 普通消息 -->
         <div v-else class="normal-content">
@@ -85,20 +91,9 @@ const avatarIcon = computed(() => {
   }
 })
 
-// 角色标签
-const roleLabel = computed(() => {
+// 角色名称（始终显示）
+const roleName = computed(() => {
   const role = props.message.role || 'user'
-  if (role === 'assistant' && props.message.responseType) {
-    const typeLabels = {
-      yes: '✅ 是',
-      no: '❌ 不是',
-      close: '🔥 接近答案',
-      partial: '🟡 部分正确',
-      irrelevant: '⚪ 无关',
-      clarify: '❓ 需澄清'
-    }
-    return typeLabels[props.message.responseType] || '🤖 AI助手'
-  }
   switch (role) {
     case 'user': return '🕵️ 侦探'
     case 'assistant': return '🤖 AI助手'
@@ -106,6 +101,23 @@ const roleLabel = computed(() => {
     default: return role
   }
 })
+
+// 回复类型标签（仅 assistant 有）
+const responseTag = computed(() => {
+  if (props.message.role !== 'assistant' || !props.message.responseType) return null
+  const tags = {
+    yes: '是',
+    no: '不是',
+    close: '接近答案',
+    partial: '部分正确',
+    irrelevant: '无关',
+    clarify: '需澄清'
+  }
+  return tags[props.message.responseType] || null
+})
+
+// 保留兼容（bubbleClass 中仍使用 responseType）
+const roleLabel = computed(() => roleName.value)
 
 // 状态图标
 const statusIcon = computed(() => {
@@ -182,8 +194,8 @@ const renderMarkdown = (content) => {
 <style scoped>
 .message-bubble {
   display: flex;
-  gap: 0.75rem;
-  max-width: 85%;
+  gap: 0.6rem;
+  max-width: 90%;
   animation: fadeIn 0.3s ease;
 }
 
@@ -230,7 +242,8 @@ const renderMarkdown = (content) => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  max-width: calc(100% - 48px);
+  min-width: 0;
+  flex: 1;
 }
 
 .role-user .message-content {
@@ -243,6 +256,8 @@ const renderMarkdown = (content) => {
   gap: 0.5rem;
   font-size: 0.75rem;
   opacity: 0.7;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .message-role {
@@ -250,8 +265,47 @@ const renderMarkdown = (content) => {
   color: var(--accent-gold);
 }
 
+.response-tag {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.response-tag.tag-yes {
+  background: rgba(42, 157, 143, 0.15);
+  color: var(--accent-green);
+}
+
+.response-tag.tag-no {
+  background: rgba(230, 57, 70, 0.12);
+  color: var(--accent-red);
+}
+
+.response-tag.tag-close {
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--accent-gold);
+}
+
+.response-tag.tag-partial {
+  background: rgba(212, 175, 55, 0.12);
+  color: var(--accent-gold);
+}
+
+.response-tag.tag-irrelevant {
+  background: rgba(128, 133, 150, 0.12);
+  color: var(--text-muted);
+}
+
+.response-tag.tag-clarify {
+  background: rgba(74, 127, 255, 0.12);
+  color: var(--accent-blue);
+}
+
 .message-time {
   color: var(--text-muted);
+  margin-left: auto;
 }
 
 .message-body {
@@ -368,6 +422,28 @@ const renderMarkdown = (content) => {
   vertical-align: middle;
 }
 
+.typing-dots {
+  display: flex;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.typing-dots span {
+  width: 7px;
+  height: 7px;
+  background-color: var(--text-muted);
+  border-radius: 50%;
+  animation: typing-bounce 1.4s infinite;
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
@@ -465,18 +541,22 @@ const renderMarkdown = (content) => {
 
 @media (max-width: 640px) {
   .message-bubble {
-    max-width: 95%;
+    max-width: 100%;
   }
 
   .message-avatar {
-    width: 32px;
-    height: 32px;
-    font-size: 1rem;
+    width: 28px;
+    height: 28px;
+    font-size: 0.9rem;
   }
 
   .message-body {
     padding: 0.5rem 0.75rem;
     font-size: 0.9rem;
+  }
+
+  .message-header {
+    gap: 0.35rem;
   }
 }
 </style>

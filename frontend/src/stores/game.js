@@ -102,6 +102,9 @@ export const useGameStore = defineStore('game', () => {
             }
           }
 
+          loading.value = false
+          streaming.value = false
+
           // 检查是否需要提示
           const consecutiveNo = getConsecutiveNoCount()
           if (consecutiveNo >= 5) {
@@ -131,6 +134,9 @@ export const useGameStore = defineStore('game', () => {
               isError: true
             }
           }
+
+          loading.value = false
+          streaming.value = false
         }
       )
 
@@ -140,6 +146,9 @@ export const useGameStore = defineStore('game', () => {
     } catch (err) {
       error.value = err
       console.error('发送消息失败:', err)
+
+      loading.value = false
+      streaming.value = false
 
       // 移除流式占位符（如果有错误发生在开始前）
       const streamingIndex = messages.value.findIndex(m => m.id === streamingMessageId)
@@ -158,9 +167,6 @@ export const useGameStore = defineStore('game', () => {
       messages.value.push(errorMessage)
 
       throw err
-    } finally {
-      loading.value = false
-      streaming.value = false
     }
   }
 
