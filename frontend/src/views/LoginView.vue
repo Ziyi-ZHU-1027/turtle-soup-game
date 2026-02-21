@@ -200,9 +200,11 @@ const continueAsGuest = () => {
 }
 
 .login-container {
-  background-color: #1a1a3e;
-  border: 1px solid #2a2a5a;
-  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
   padding: 3rem;
   max-width: 500px;
   width: 100%;
@@ -214,20 +216,20 @@ const continueAsGuest = () => {
 }
 
 .login-header h1 {
-  color: #c9a84c;
+  color: var(--accent-gold);
   font-size: 2rem;
   margin-bottom: 0.5rem;
 }
 
 .login-header p {
-  color: #9999bb;
+  color: var(--text-muted);
 }
 
 .login-tabs {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 2rem;
-  border-bottom: 1px solid #2a2a5a;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tab-button {
@@ -235,7 +237,7 @@ const continueAsGuest = () => {
   padding: 1rem;
   background: transparent;
   border: none;
-  color: #9999bb;
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: 6px 6px 0 0;
   transition: all 0.3s;
@@ -244,14 +246,14 @@ const continueAsGuest = () => {
 }
 
 .tab-button:hover {
-  background-color: rgba(201, 168, 76, 0.05);
-  color: #e0e0e0;
+  background-color: rgba(212, 175, 55, 0.05);
+  color: var(--text-secondary);
 }
 
 .tab-button.active {
-  background-color: rgba(201, 168, 76, 0.1);
-  color: #c9a84c;
-  border-bottom: 2px solid #c9a84c;
+  background-color: rgba(212, 175, 55, 0.08);
+  color: var(--accent-gold);
+  border-bottom: 2px solid var(--accent-gold);
 }
 
 .login-form {
@@ -265,7 +267,7 @@ const continueAsGuest = () => {
 
 .form-group label {
   display: block;
-  color: #e0e0e0;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
 }
@@ -273,22 +275,22 @@ const continueAsGuest = () => {
 .form-group input {
   width: 100%;
   padding: 0.75rem 1rem;
-  background-color: #111128;
-  border: 1px solid #2a2a5a;
-  border-radius: 8px;
-  color: #e0e0e0;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
   font-size: 1rem;
   transition: all 0.3s;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #c9a84c;
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.1);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.1);
 }
 
 .form-group input::placeholder {
-  color: #666688;
+  color: var(--text-muted);
 }
 
 .toggle-password {
@@ -297,14 +299,14 @@ const continueAsGuest = () => {
   top: 2.4rem;
   background: none;
   border: none;
-  color: #9999bb;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0.25rem;
   border-radius: 4px;
 }
 
 .toggle-password:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .form-options {
@@ -318,7 +320,7 @@ const continueAsGuest = () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #e0e0e0;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   cursor: pointer;
 }
@@ -329,7 +331,7 @@ const continueAsGuest = () => {
 }
 
 .form-options a {
-  color: #c9a84c;
+  color: var(--accent-gold);
   text-decoration: none;
   font-size: 0.9rem;
 }
@@ -341,10 +343,10 @@ const continueAsGuest = () => {
 .btn-submit {
   width: 100%;
   padding: 1rem;
-  background: linear-gradient(135deg, #c9a84c, #8a7535);
-  color: #0a0a1a;
+  background: linear-gradient(135deg, var(--accent-gold), #8a7535);
+  color: var(--bg-primary);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -354,7 +356,7 @@ const continueAsGuest = () => {
 
 .btn-submit:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(201, 168, 76, 0.3);
+  box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);
 }
 
 .btn-submit:disabled {
@@ -373,12 +375,12 @@ const continueAsGuest = () => {
   content: '';
   flex: 1;
   height: 1px;
-  background-color: #2a2a5a;
+  background-color: var(--border-color);
 }
 
 .login-divider span {
   padding: 0 1rem;
-  color: #666688;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -386,9 +388,9 @@ const continueAsGuest = () => {
   width: 100%;
   padding: 1rem;
   background: transparent;
-  color: #c9a84c;
-  border: 1px solid #c9a84c;
-  border-radius: 8px;
+  color: var(--accent-gold);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: var(--radius-sm);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -397,17 +399,17 @@ const continueAsGuest = () => {
 }
 
 .btn-guest:hover {
-  background-color: rgba(201, 168, 76, 0.1);
+  background-color: rgba(212, 175, 55, 0.08);
 }
 
 .form-footer {
   text-align: center;
-  color: #9999bb;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
 .form-footer a {
-  color: #c9a84c;
+  color: var(--accent-gold);
   text-decoration: none;
   font-weight: 500;
 }
@@ -419,18 +421,18 @@ const continueAsGuest = () => {
 .login-info {
   margin-top: 2rem;
   padding-top: 2rem;
-  border-top: 1px solid #2a2a5a;
+  border-top: 1px solid var(--border-color);
 }
 
 .info-card {
-  background-color: #111128;
-  border: 1px solid #2a2a5a;
-  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   padding: 1.5rem;
 }
 
 .info-card h3 {
-  color: #e0e0e0;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
   font-size: 1.1rem;
 }
@@ -442,7 +444,7 @@ const continueAsGuest = () => {
 }
 
 .info-card li {
-  color: #9999bb;
+  color: var(--text-muted);
   margin-bottom: 0.5rem;
   padding-left: 1.5rem;
   position: relative;
@@ -450,7 +452,7 @@ const continueAsGuest = () => {
 
 .info-card li::before {
   content: '✓';
-  color: #4caf50;
+  color: var(--accent-green);
   position: absolute;
   left: 0;
 }

@@ -4,7 +4,7 @@
       <div class="container">
         <router-link to="/" class="logo">
           <span class="logo-icon">🐢</span>
-          <span class="logo-text">海龟汤</span>
+          <span class="logo-text">海龟汤 <span class="logo-subtitle">AI侦探局</span></span>
         </router-link>
         <nav class="nav-links">
           <router-link to="/">首页</router-link>
@@ -31,7 +31,7 @@
 
     <footer class="app-footer">
       <div class="container">
-        <p>海龟汤 - 情境猜谜游戏 &copy; {{ new Date().getFullYear() }}</p>
+        <p>海龟汤 AI侦探局 &copy; {{ new Date().getFullYear() }}</p>
         <p class="footer-links">
           <a href="https://github.com/Ziyi-ZHU-1027/turtle-soup-game/" target="_blank">GitHub</a>
           <a href="/privacy">隐私政策</a>
@@ -57,8 +57,10 @@ onMounted(() => {
 
 <style scoped>
 .app-header {
-  background: linear-gradient(135deg, #1a1a3e, #0a0a1a);
-  border-bottom: 1px solid #2a2a5a;
+  background: rgba(13, 15, 18, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
   padding: 1rem 0;
   position: sticky;
   top: 0;
@@ -81,11 +83,17 @@ onMounted(() => {
   text-decoration: none;
   font-size: 1.5rem;
   font-weight: bold;
-  color: #c9a84c;
+  color: var(--accent-gold);
 }
 
 .logo-icon {
   font-size: 1.8rem;
+}
+
+.logo-subtitle {
+  font-size: 0.7em;
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 .nav-links {
@@ -95,7 +103,7 @@ onMounted(() => {
 }
 
 .nav-links a {
-  color: #e0e0e0;
+  color: var(--text-secondary);
   text-decoration: none;
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -103,48 +111,48 @@ onMounted(() => {
 }
 
 .nav-links a:hover {
-  background-color: rgba(201, 168, 76, 0.1);
+  background-color: rgba(212, 175, 55, 0.08);
 }
 
 .nav-links a.router-link-active {
-  color: #c9a84c;
-  background-color: rgba(201, 168, 76, 0.1);
+  color: var(--accent-gold);
+  background-color: rgba(212, 175, 55, 0.08);
 }
 
 .user-email {
-  color: #9999bb;
+  color: var(--text-muted);
   font-size: 0.9rem;
   margin-right: 0.5rem;
 }
 
 .btn-logout, .btn-login {
   padding: 0.5rem 1rem;
-  border: 1px solid #c9a84c;
+  border: 1px solid rgba(212, 175, 55, 0.3);
   background: transparent;
-  color: #c9a84c;
+  color: var(--accent-gold);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .btn-logout:hover, .btn-login:hover {
-  background-color: rgba(201, 168, 76, 0.1);
+  background-color: rgba(212, 175, 55, 0.08);
 }
 
 .app-main {
   min-height: calc(100vh - 140px);
-  background-color: #0a0a1a;
+  background-color: var(--bg-primary);
 }
 
 .app-footer {
-  background-color: #111128;
-  border-top: 1px solid #2a2a5a;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--glass-border);
   padding: 1.5rem 0;
   text-align: center;
 }
 
 .app-footer p {
-  color: #666688;
+  color: var(--text-muted);
   margin: 0.5rem 0;
 }
 
@@ -156,13 +164,13 @@ onMounted(() => {
 }
 
 .footer-links a {
-  color: #9999bb;
+  color: var(--text-muted);
   text-decoration: none;
   transition: color 0.3s;
 }
 
 .footer-links a:hover {
-  color: #c9a84c;
+  color: var(--accent-gold);
 }
 
 .fade-enter-active,

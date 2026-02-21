@@ -3,7 +3,7 @@
     <div class="hero-section">
       <div class="hero-content">
         <h1 class="hero-title">🐢 海龟汤</h1>
-        <p class="hero-subtitle">情境猜谜游戏</p>
+        <p class="hero-subtitle">AI侦探局 · 情境猜谜游戏</p>
         <p class="hero-description">
           一段离奇的故事，一个未知的真相<br>
           用你的问题，揭开谜底
@@ -90,10 +90,10 @@ const authStore = useAuthStore()
 }
 
 .hero-section {
-  background: linear-gradient(135deg, #1a1a3e 0%, #0a0a1a 100%);
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
   padding: 4rem 1rem;
   text-align: center;
-  border-bottom: 1px solid #2a2a5a;
+  border-bottom: 1px solid var(--glass-border);
 }
 
 .hero-content {
@@ -104,23 +104,24 @@ const authStore = useAuthStore()
 .hero-title {
   font-size: 3.5rem;
   font-weight: 900;
-  color: #c9a84c;
+  color: var(--accent-gold);
   margin-bottom: 1rem;
   letter-spacing: 2px;
 }
 
 .hero-subtitle {
   font-size: 1.2rem;
-  color: #9999bb;
+  color: var(--text-muted);
   letter-spacing: 4px;
   margin-bottom: 2rem;
 }
 
 .hero-description {
   font-size: 1.1rem;
-  color: #e0e0e0;
+  color: var(--text-secondary);
   line-height: 1.8;
   margin-bottom: 3rem;
+  font-family: var(--font-serif);
 }
 
 .hero-actions {
@@ -132,7 +133,7 @@ const authStore = useAuthStore()
 
 .btn-primary, .btn-secondary {
   padding: 1rem 2rem;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 1.1rem;
   font-weight: 600;
   text-decoration: none;
@@ -141,24 +142,24 @@ const authStore = useAuthStore()
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #c9a84c, #8a7535);
-  color: #0a0a1a;
+  background: linear-gradient(135deg, var(--accent-gold), #8a7535);
+  color: var(--bg-primary);
   border: none;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(201, 168, 76, 0.3);
+  box-shadow: 0 10px 20px rgba(212, 175, 55, 0.3);
 }
 
 .btn-secondary {
   background: transparent;
-  color: #c9a84c;
-  border: 1px solid #c9a84c;
+  color: var(--accent-gold);
+  border: 1px solid rgba(212, 175, 55, 0.3);
 }
 
 .btn-secondary:hover {
-  background: rgba(201, 168, 76, 0.1);
+  background: rgba(212, 175, 55, 0.08);
 }
 
 .container {
@@ -169,13 +170,13 @@ const authStore = useAuthStore()
 
 .features-section {
   padding: 4rem 1rem;
-  background-color: #0a0a1a;
+  background-color: var(--bg-primary);
 }
 
 .section-title {
   text-align: center;
   font-size: 2.5rem;
-  color: #c9a84c;
+  color: var(--accent-gold);
   margin-bottom: 3rem;
 }
 
@@ -186,9 +187,11 @@ const authStore = useAuthStore()
 }
 
 .feature-card {
-  background-color: #1a1a3e;
-  border: 1px solid #2a2a5a;
-  border-radius: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
   padding: 2rem;
   text-align: center;
   transition: all 0.3s;
@@ -196,8 +199,8 @@ const authStore = useAuthStore()
 
 .feature-card:hover {
   transform: translateY(-5px);
-  border-color: #c9a84c;
-  box-shadow: 0 10px 20px rgba(201, 168, 76, 0.1);
+  border-color: var(--border-color-hover);
+  box-shadow: 0 10px 30px rgba(212, 175, 55, 0.08);
 }
 
 .feature-icon {
@@ -206,20 +209,20 @@ const authStore = useAuthStore()
 }
 
 .feature-card h3 {
-  color: #e0e0e0;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
   font-size: 1.3rem;
 }
 
 .feature-card p {
-  color: #9999bb;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 
 .how-to-play-section {
   padding: 4rem 1rem;
-  background-color: #111128;
-  border-top: 1px solid #2a2a5a;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--glass-border);
 }
 
 .steps {
@@ -234,15 +237,17 @@ const authStore = useAuthStore()
   display: flex;
   align-items: flex-start;
   gap: 2rem;
-  background-color: #1a1a3e;
-  border: 1px solid #2a2a5a;
-  border-radius: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
   padding: 2rem;
 }
 
 .step-number {
-  background: linear-gradient(135deg, #c9a84c, #8a7535);
-  color: #0a0a1a;
+  background: linear-gradient(135deg, var(--accent-gold), #8a7535);
+  color: var(--bg-primary);
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -259,13 +264,13 @@ const authStore = useAuthStore()
 }
 
 .step-content h3 {
-  color: #e0e0e0;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
   font-size: 1.3rem;
 }
 
 .step-content p {
-  color: #9999bb;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 

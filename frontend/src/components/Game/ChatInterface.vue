@@ -1,10 +1,10 @@
 <template>
   <div class="chat-interface">
-    <!-- 汤面展示 -->
+    <!-- 汤面展示 - 卷宗化 -->
     <div v-if="puzzle" class="tangmian-section">
       <div class="tangmian-card">
         <div class="tangmian-header">
-          <span class="tangmian-label">🍜 汤面</span>
+          <span class="tangmian-label">📜 案件档案</span>
           <span class="tangmian-title">{{ puzzle.title }}</span>
           <button
             class="btn-collapse"
@@ -65,7 +65,7 @@
           <input
             v-model="inputMessage"
             type="text"
-            placeholder="输入你的问题..."
+            :placeholder="dynamicPlaceholder"
             :disabled="loading || !puzzle"
             @keydown.enter.exact.prevent="handleSubmit"
             ref="messageInput"
@@ -177,6 +177,24 @@ const questionCount = computed(() => {
   return props.messages.filter(m => m.role === 'user').length
 })
 
+// 动态 Placeholder
+const dynamicPlaceholder = computed(() => {
+  const count = questionCount.value
+  const suggestions = [
+    '不妨问问看：这件事发生在白天吗？',
+    '试试换个角度：受害者的身份重要吗？',
+    '想想看：这个故事和地点有关吗？',
+    '也许可以问：故事中有几个人？',
+    '尝试问：事件的时间线重要吗？',
+    '换个方向：结局和情感有关吗？'
+  ]
+
+  if (count > 8) {
+    return suggestions[count % suggestions.length]
+  }
+  return '输入你的问题...'
+})
+
 // 自动滚动到底部
 const scrollToBottom = () => {
   nextTick(() => {
@@ -190,10 +208,26 @@ const scrollToBottom = () => {
 watch(() => props.messages.length, scrollToBottom)
 watch(() => props.streamedContent, scrollToBottom)
 
+// 滚动时自动折叠汤面卡片
+const handleScroll = () => {
+  if (messagesContainer.value && messagesContainer.value.scrollTop > 50) {
+    tangmianCollapsed.value = true
+  }
+}
+
 // 聚焦输入框
 onMounted(() => {
   if (messageInput.value) {
     messageInput.value.focus()
+  }
+  if (messagesContainer.value) {
+    messagesContainer.value.addEventListener('scroll', handleScroll)
+  }
+})
+
+onUnmounted(() => {
+  if (messagesContainer.value) {
+    messagesContainer.value.removeEventListener('scroll', handleScroll)
   }
 })
 
@@ -270,15 +304,37 @@ onUnmounted(() => {
   height: 100%;
 }
 
+/* ===== 卷宗化汤面卡片 ===== */
+
 .tangmian-section {
   margin-bottom: 1rem;
 }
 
 .tangmian-card {
-  background-color: #1a1a3e;
-  border: 1px solid #2a2a5a;
-  border-radius: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+/* "机密档案"水印 */
+.tangmian-card::before {
+  content: '机密档案';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-15deg);
+  font-family: var(--font-serif);
+  font-size: 4rem;
+  font-weight: 900;
+  color: rgba(212, 175, 55, 0.03);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 0;
 }
 
 .tangmian-header {
@@ -286,18 +342,23 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.5rem;
-  background-color: rgba(201, 168, 76, 0.1);
-  border-bottom: 1px solid #2a2a5a;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), transparent);
+  border-bottom: 1px solid var(--glass-border);
+  position: relative;
+  z-index: 1;
 }
 
 .tangmian-label {
-  color: #c9a84c;
-  font-weight: 600;
+  color: var(--accent-gold);
+  font-family: var(--font-serif);
+  font-weight: 700;
   font-size: 0.9rem;
+  letter-spacing: 2px;
 }
 
 .tangmian-title {
-  color: #e0e0e0;
+  color: var(--text-primary);
+  font-family: var(--font-serif);
   font-weight: 600;
   flex: 1;
   margin: 0 1rem;
@@ -306,7 +367,7 @@ onUnmounted(() => {
 .btn-collapse {
   background: none;
   border: none;
-  color: #9999bb;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
@@ -314,17 +375,22 @@ onUnmounted(() => {
 }
 
 .btn-collapse:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #e0e0e0;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
 }
 
 .tangmian-body {
   padding: 1.5rem;
-  color: #e0e0e0;
-  line-height: 1.6;
-  transition: max-height 0.3s ease;
+  font-family: var(--font-serif);
+  color: var(--text-primary);
+  line-height: 1.8;
+  font-size: 1.05rem;
+  letter-spacing: 0.3px;
+  transition: max-height 0.3s ease, padding 0.3s ease;
   max-height: 200px;
   overflow-y: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .tangmian-body.collapsed {
@@ -333,13 +399,15 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+/* ===== 聊天消息区 ===== */
+
 .chat-messages-container {
   flex: 1;
   overflow-y: auto;
   margin-bottom: 1rem;
-  background-color: #111128;
-  border: 1px solid #2a2a5a;
-  border-radius: 12px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
   padding: 1rem;
 }
 
@@ -390,7 +458,7 @@ onUnmounted(() => {
 .typing-indicator span {
   width: 8px;
   height: 8px;
-  background-color: #9999bb;
+  background-color: var(--text-muted);
   border-radius: 50%;
   animation: bounce 1.4s infinite;
 }
@@ -412,22 +480,25 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background-color: rgba(201, 168, 76, 0.1);
-  border: 1px solid rgba(201, 168, 76, 0.2);
-  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.04));
+  border: 1px dashed rgba(212, 175, 55, 0.3);
+  border-radius: var(--radius-sm);
   padding: 0.75rem 1rem;
-  color: #c9a84c;
+  color: var(--accent-gold);
   font-size: 0.9rem;
+  font-family: var(--font-serif);
+  font-style: italic;
 }
 
 .hint-icon {
   font-size: 1.2rem;
+  font-style: normal;
 }
 
 .btn-hint-action {
-  background: rgba(201, 168, 76, 0.2);
-  color: #c9a84c;
-  border: 1px solid rgba(201, 168, 76, 0.4);
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--accent-gold);
+  border: 1px solid rgba(212, 175, 55, 0.3);
   border-radius: 4px;
   padding: 0.25rem 0.75rem;
   font-size: 0.8rem;
@@ -437,11 +508,13 @@ onUnmounted(() => {
 }
 
 .btn-hint-action:hover {
-  background: rgba(201, 168, 76, 0.3);
+  background: rgba(212, 175, 55, 0.25);
 }
 
+/* ===== 输入区域 ===== */
+
 .chat-input-section {
-  border-top: 1px solid #2a2a5a;
+  border-top: 1px solid var(--border-color);
   padding-top: 1rem;
 }
 
@@ -459,17 +532,17 @@ onUnmounted(() => {
 .input-wrapper input {
   flex: 1;
   padding: 0.75rem 1rem;
-  background-color: #15152e;
-  border: 1px solid #2a2a5a;
-  border-radius: 8px;
-  color: #e0e0e0;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
   font-size: 1rem;
 }
 
 .input-wrapper input:focus {
   outline: none;
-  border-color: #c9a84c;
-  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.1);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.1);
 }
 
 .input-wrapper input:disabled {
@@ -480,10 +553,10 @@ onUnmounted(() => {
 .btn-send {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #c9a84c, #8a7535);
-  color: #0a0a1a;
+  background: linear-gradient(135deg, var(--accent-gold), #8a7535);
+  color: var(--bg-primary);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 1.2rem;
   cursor: pointer;
   transition: all 0.3s;
@@ -512,18 +585,18 @@ onUnmounted(() => {
 .input-actions button {
   padding: 0.5rem 0.75rem;
   background: transparent;
-  border: 1px solid #2a2a5a;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
-  color: #9999bb;
+  color: var(--text-muted);
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .input-actions button:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-color: #c9a84c;
-  color: #c9a84c;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: var(--border-color-hover);
+  color: var(--accent-gold);
 }
 
 .input-actions button:disabled {
@@ -532,18 +605,18 @@ onUnmounted(() => {
 }
 
 .question-count {
-  color: #666688;
+  color: var(--text-muted);
   font-size: 0.85rem;
   margin: 0 0.5rem;
 }
 
 .btn-reveal {
-  border-color: #e74c3c !important;
-  color: #e74c3c !important;
+  border-color: rgba(230, 57, 70, 0.3) !important;
+  color: var(--accent-red) !important;
 }
 
 .btn-reveal:hover:not(:disabled) {
-  background-color: rgba(231, 76, 60, 0.1) !important;
+  background-color: rgba(230, 57, 70, 0.08) !important;
 }
 
 @media (max-width: 640px) {

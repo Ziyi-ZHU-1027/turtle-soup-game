@@ -206,6 +206,15 @@ const checkForHint = () => {
   }
 }
 
+// 破晓效果：揭晓答案时短暂提亮
+watch(() => gameStore.messages, (msgs) => {
+  const lastMsg = msgs[msgs.length - 1]
+  if (lastMsg?.isSolution) {
+    document.body.classList.add('dawn-effect')
+    setTimeout(() => document.body.classList.remove('dawn-effect'), 2000)
+  }
+}, { deep: true })
+
 // 监听消息变化
 watch(() => gameStore.messages, () => {
   checkForHint()
@@ -232,13 +241,13 @@ onMounted(() => {
 }
 
 .game-header h1 {
-  color: #c9a84c;
+  color: var(--accent-gold);
   font-size: 2rem;
   margin-bottom: 0.5rem;
 }
 
 .game-header p {
-  color: #9999bb;
+  color: var(--text-muted);
 }
 
 .game-container {
@@ -254,32 +263,34 @@ onMounted(() => {
 }
 
 .puzzle-list {
-  background-color: #1a1a3e;
-  border: 1px solid #2a2a5a;
-  border-radius: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
 .puzzle-list h3 {
-  color: #e0e0e0;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #2a2a5a;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .loading {
   text-align: center;
-  color: #9999bb;
+  color: var(--text-muted);
   padding: 2rem;
 }
 
 .error {
   text-align: center;
-  color: #ff6b6b;
+  color: var(--accent-red);
   padding: 1rem;
-  background-color: rgba(255, 107, 107, 0.1);
-  border-radius: 8px;
+  background-color: rgba(230, 57, 70, 0.08);
+  border-radius: var(--radius-sm);
   margin-bottom: 1rem;
 }
 
@@ -287,14 +298,14 @@ onMounted(() => {
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
   background-color: transparent;
-  border: 1px solid #ff6b6b;
-  color: #ff6b6b;
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
   border-radius: 6px;
   cursor: pointer;
 }
 
 .error button:hover {
-  background-color: rgba(255, 107, 107, 0.1);
+  background-color: rgba(230, 57, 70, 0.08);
 }
 
 .puzzle-items {
@@ -304,22 +315,22 @@ onMounted(() => {
 }
 
 .puzzle-item {
-  background-color: #111128;
-  border: 1px solid #2a2a5a;
-  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   padding: 1rem;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .puzzle-item:hover:not([disabled]) {
-  border-color: #c9a84c;
-  background-color: #222255;
+  border-color: var(--border-color-hover);
+  background-color: rgba(212, 175, 55, 0.05);
 }
 
 .puzzle-item.active {
-  border-color: #c9a84c;
-  background-color: rgba(201, 168, 76, 0.1);
+  border-color: var(--accent-gold);
+  background-color: rgba(212, 175, 55, 0.08);
 }
 
 .puzzle-item[disabled] {
@@ -328,7 +339,7 @@ onMounted(() => {
 }
 
 .puzzle-item h4 {
-  color: #e0e0e0;
+  color: var(--text-secondary);
   margin-bottom: 0.5rem;
   font-size: 1rem;
 }
@@ -341,11 +352,11 @@ onMounted(() => {
 }
 
 .difficulty {
-  color: #c9a84c;
+  color: var(--accent-gold);
 }
 
 .tags {
-  color: #666688;
+  color: var(--text-muted);
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -353,17 +364,19 @@ onMounted(() => {
 }
 
 .game-controls {
-  background-color: #1a1a3e;
-  border: 1px solid #2a2a5a;
-  border-radius: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
   padding: 1.5rem;
 }
 
 .control-section h4 {
-  color: #e0e0e0;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid #2a2a5a;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .control-buttons {
@@ -376,7 +389,7 @@ onMounted(() => {
 .control-buttons button {
   padding: 0.75rem;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
@@ -388,36 +401,36 @@ onMounted(() => {
 }
 
 .btn-reveal {
-  background: linear-gradient(135deg, #8a7535, #c9a84c);
-  color: #0a0a1a;
+  background: linear-gradient(135deg, #8a7535, var(--accent-gold));
+  color: var(--bg-primary);
 }
 
 .btn-reveal:hover:not(:disabled) {
-  background: linear-gradient(135deg, #c9a84c, #8a7535);
+  background: linear-gradient(135deg, var(--accent-gold), #8a7535);
 }
 
 .btn-surrender {
   background-color: transparent;
-  border: 1px solid #666688 !important;
-  color: #666688;
+  border: 1px solid var(--text-muted) !important;
+  color: var(--text-muted);
 }
 
 .btn-surrender:hover:not(:disabled) {
-  background-color: rgba(102, 102, 136, 0.1);
+  background-color: rgba(128, 133, 150, 0.08);
 }
 
 .btn-reset {
   background-color: transparent;
-  border: 1px solid #c9a84c !important;
-  color: #c9a84c;
+  border: 1px solid rgba(212, 175, 55, 0.3) !important;
+  color: var(--accent-gold);
 }
 
 .btn-reset:hover:not(:disabled) {
-  background-color: rgba(201, 168, 76, 0.1);
+  background-color: rgba(212, 175, 55, 0.08);
 }
 
 .game-stats {
-  color: #9999bb;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -426,8 +439,8 @@ onMounted(() => {
 }
 
 .hint-message {
-  color: #ffa726;
-  background-color: rgba(255, 167, 38, 0.1);
+  color: var(--accent-gold);
+  background-color: rgba(212, 175, 55, 0.08);
   padding: 0.5rem;
   border-radius: 6px;
   margin-top: 0.5rem;
@@ -444,33 +457,15 @@ onMounted(() => {
   gap: 2rem;
 }
 
-.tangmian-card {
-  background-color: #1a1a3e;
-  border: 1px solid #2a2a5a;
-  border-radius: 12px;
-  padding: 1.5rem;
-}
-
-.tangmian-card h3 {
-  color: #c9a84c;
-  margin-bottom: 1rem;
-}
-
-.tangmian-card p {
-  color: #e0e0e0;
-  line-height: 1.6;
-  font-size: 1.1rem;
-}
-
 .empty-state {
   text-align: center;
   padding: 4rem;
-  color: #666688;
+  color: var(--text-muted);
   font-size: 1.1rem;
 }
 
 .empty-hint {
-  color: #9999bb;
+  color: var(--text-muted);
   font-size: 0.9rem;
   margin-top: 0.5rem;
 }

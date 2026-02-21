@@ -150,7 +150,7 @@ export const apiClient = {
                   if (currentEvent === 'chunk' && onChunk) {
                     onChunk(data.chunk)
                   } else if (currentEvent === 'complete' && onComplete) {
-                    onComplete(data.response)
+                    onComplete(data.response, data.type)
                   } else if (currentEvent === 'error' && onError) {
                     onError(data.error)
                   } else if (currentEvent === 'hint' && onChunk) {

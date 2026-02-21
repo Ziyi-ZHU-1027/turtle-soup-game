@@ -88,7 +88,7 @@ export const useGameStore = defineStore('game', () => {
           }
         },
         // onComplete回调：流式完成
-        async (completeResponse) => {
+        async (completeResponse, responseType) => {
           // 将流式消息转换为完成的消息
           const index = messages.value.findIndex(m => m.id === streamingMessageId)
           if (index !== -1) {
@@ -97,7 +97,8 @@ export const useGameStore = defineStore('game', () => {
               role: 'assistant',
               content: completeResponse,
               timestamp: new Date(),
-              isStreaming: false
+              isStreaming: false,
+              responseType: responseType || 'other'
             }
           }
 

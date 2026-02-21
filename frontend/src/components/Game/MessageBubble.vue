@@ -62,9 +62,11 @@ const props = defineProps({
 
 // 气泡样式类
 const bubbleClass = computed(() => {
-  const baseClass = `role-${props.message.role || 'user'}`
-  const statusClass = props.message.status ? `status-${props.message.status}` : ''
-  return `${baseClass} ${statusClass}`.trim()
+  const classes = [`role-${props.message.role || 'user'}`]
+  if (props.message.status) classes.push(`status-${props.message.status}`)
+  if (props.message.responseType) classes.push(`response-${props.message.responseType}`)
+  if (props.message.isHint) classes.push('is-hint')
+  return classes.join(' ')
 })
 
 // 头像样式类
@@ -76,9 +78,9 @@ const avatarClass = computed(() => {
 const avatarIcon = computed(() => {
   const role = props.message.role || 'user'
   switch (role) {
-    case 'user': return '👤'
+    case 'user': return '🕵️'
     case 'assistant': return '🤖'
-    case 'system': return '⚙️'
+    case 'system': return '📋'
     default: return '💬'
   }
 })
@@ -86,10 +88,21 @@ const avatarIcon = computed(() => {
 // 角色标签
 const roleLabel = computed(() => {
   const role = props.message.role || 'user'
+  if (role === 'assistant' && props.message.responseType) {
+    const typeLabels = {
+      yes: '✅ 是',
+      no: '❌ 不是',
+      close: '🔥 接近答案',
+      partial: '🟡 部分正确',
+      irrelevant: '⚪ 无关',
+      clarify: '❓ 需澄清'
+    }
+    return typeLabels[props.message.responseType] || '🤖 AI助手'
+  }
   switch (role) {
-    case 'user': return '玩家'
-    case 'assistant': return 'AI助手'
-    case 'system': return '系统'
+    case 'user': return '🕵️ 侦探'
+    case 'assistant': return '🤖 AI助手'
+    case 'system': return '📋 系统'
     default: return role
   }
 })
@@ -195,15 +208,18 @@ const renderMarkdown = (content) => {
 }
 
 .avatar-user {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(212, 175, 55, 0.1));
+  border: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 .avatar-assistant {
-  background: linear-gradient(135deg, #f093fb, #f5576c);
+  background: linear-gradient(135deg, rgba(42, 157, 143, 0.3), rgba(42, 157, 143, 0.1));
+  border: 1px solid rgba(42, 157, 143, 0.2);
 }
 
 .avatar-system {
-  background: linear-gradient(135deg, #4facfe, #00f2fe);
+  background: linear-gradient(135deg, rgba(128, 133, 150, 0.3), rgba(128, 133, 150, 0.1));
+  border: 1px solid rgba(128, 133, 150, 0.2);
 }
 
 .avatar-icon {
@@ -231,41 +247,110 @@ const renderMarkdown = (content) => {
 
 .message-role {
   font-weight: 600;
-  color: #c9a84c;
+  color: var(--accent-gold);
 }
 
 .message-time {
-  color: #666688;
+  color: var(--text-muted);
 }
 
 .message-body {
-  background-color: #1a1a3e;
-  border: 1px solid #2a2a5a;
-  border-radius: 12px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
   padding: 0.75rem 1rem;
   word-break: break-word;
   position: relative;
 }
 
 .role-user .message-body {
-  background: linear-gradient(135deg, #2a2a5a, #1a1a3e);
-  border-color: #3a3a6a;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), var(--bg-secondary));
+  border-color: rgba(212, 175, 55, 0.15);
 }
 
 .role-assistant .message-body {
-  background-color: #111128;
-  border-color: #2a2a5a;
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
 }
 
 .role-system .message-body {
-  background-color: rgba(201, 168, 76, 0.1);
-  border-color: rgba(201, 168, 76, 0.2);
+  background-color: rgba(128, 133, 150, 0.08);
+  border-color: rgba(128, 133, 150, 0.12);
 }
+
+/* ===== 回复类型视觉分化 ===== */
+
+/* YES - 肯定反馈，绿色左边框 */
+.response-yes .message-body {
+  border-left: 3px solid var(--accent-green);
+  background: linear-gradient(135deg, rgba(42, 157, 143, 0.08), var(--bg-secondary));
+}
+
+/* NO - 否定反馈，红色调淡化 + 半透明划线 */
+.response-no .message-body {
+  border-left: 3px solid rgba(230, 57, 70, 0.4);
+  opacity: 0.85;
+  background: linear-gradient(135deg, rgba(230, 57, 70, 0.05), var(--bg-secondary));
+}
+.response-no .message-body::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(230, 57, 70, 0.15), transparent);
+  pointer-events: none;
+}
+
+/* CLOSE - 接近答案，金色呼吸灯 */
+.response-close .message-body {
+  border-color: var(--accent-gold);
+  border-width: 2px;
+  animation: pulse-gold 2s ease-in-out infinite;
+}
+
+/* PARTIAL - 部分正确，金色左边框 */
+.response-partial .message-body {
+  border-left: 3px solid rgba(212, 175, 55, 0.5);
+}
+
+/* IRRELEVANT - 无关，降低透明度 */
+.response-irrelevant .message-body {
+  opacity: 0.6;
+}
+
+/* CLARIFY - 需澄清，蓝色左边框 */
+.response-clarify .message-body {
+  border-left: 3px solid var(--accent-blue);
+}
+
+/* ===== 提示消息"便签纸"风格 ===== */
+.is-hint .message-body {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.04));
+  border: 1px dashed rgba(212, 175, 55, 0.4);
+  border-radius: 4px;
+  transform: rotate(-0.5deg);
+  font-family: var(--font-serif);
+  font-style: italic;
+  padding: 1rem 1.25rem;
+  position: relative;
+}
+.is-hint .message-body::before {
+  content: '💡';
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  font-size: 1.2rem;
+  font-style: normal;
+}
+
+/* ===== 正文内容 ===== */
 
 .normal-content,
 .streaming-content {
   line-height: 1.5;
-  color: #e0e0e0;
+  color: var(--text-secondary);
 }
 
 .streaming-content {
@@ -277,7 +362,7 @@ const renderMarkdown = (content) => {
   display: inline-block;
   width: 8px;
   height: 1.2em;
-  background-color: #c9a84c;
+  background-color: var(--accent-gold);
   margin-left: 2px;
   animation: blink 1s infinite;
   vertical-align: middle;
@@ -291,7 +376,7 @@ const renderMarkdown = (content) => {
 .markdown-content :deep(h1),
 .markdown-content :deep(h2),
 .markdown-content :deep(h3) {
-  color: #c9a84c;
+  color: var(--accent-gold);
   margin-top: 0.5em;
   margin-bottom: 0.25em;
 }
@@ -307,7 +392,7 @@ const renderMarkdown = (content) => {
 }
 
 .markdown-content :deep(code) {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.06);
   padding: 0.2em 0.4em;
   border-radius: 3px;
   font-family: 'Courier New', monospace;
@@ -327,14 +412,14 @@ const renderMarkdown = (content) => {
 }
 
 .markdown-content :deep(blockquote) {
-  border-left: 3px solid #c9a84c;
+  border-left: 3px solid var(--accent-gold);
   margin: 0.5em 0;
   padding-left: 1em;
-  color: #9999bb;
+  color: var(--text-muted);
 }
 
 .markdown-content :deep(a) {
-  color: #667eea;
+  color: var(--accent-blue);
   text-decoration: none;
 }
 
@@ -356,15 +441,15 @@ const renderMarkdown = (content) => {
 }
 
 .status-error {
-  color: #e74c3c;
+  color: var(--accent-red);
 }
 
 .status-sending {
-  color: #f39c12;
+  color: var(--accent-gold);
 }
 
 .status-sent, .status-delivered, .status-read {
-  color: #27ae60;
+  color: var(--accent-green);
 }
 
 @keyframes fadeIn {

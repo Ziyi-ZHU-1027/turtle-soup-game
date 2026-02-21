@@ -123,12 +123,12 @@ const streamerCount = computed(() => {
 
 // 烟花颜色
 const fireworkColors = [
-  '#FFB347', // 治愈橙
-  '#FFD700', // 温暖黄
-  '#00F3FF', // 霓虹蓝
-  '#8A2BE2', // 神秘紫
-  '#90EE90', // 治愈绿
-  '#FF9FBA'  // 温柔粉
+  '#D4AF37', // Amber Glow
+  '#2A9D8F', // Neon Mint
+  '#FFD700', // Gold bright
+  '#4a7fff', // Blue accent
+  '#FFFFFF', // White flash
+  '#E63946'  // Crimson Fade
 ]
 
 // 计算显示哪些效果
@@ -151,7 +151,7 @@ const celebrationText = computed(() => {
 
 // 生成撒花样式
 const getConfettiStyle = (index) => {
-  const colors = ['#FFB347', '#FFD700', '#00F3FF', '#8A2BE2', '#90EE90', '#FF9FBA']
+  const colors = ['#D4AF37', '#FFD700', '#2A9D8F', '#4a7fff', '#FFFFFF', '#E63946']
   const color = colors[index % colors.length]
   const size = 8 + Math.random() * 8
   const left = Math.random() * 100
@@ -186,7 +186,7 @@ const getFireworkStyle = (index) => {
 
 // 生成彩带样式
 const getStreamerStyle = (index) => {
-  const colors = ['#FFB347', '#FFD700', '#00F3FF', '#8A2BE2']
+  const colors = ['#D4AF37', '#FFD700', '#2A9D8F', '#4a7fff']
   const color = colors[index % colors.length]
   const left = Math.random() * 100
   const width = 20 + Math.random() * 30
