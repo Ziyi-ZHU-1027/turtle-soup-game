@@ -111,7 +111,8 @@ const responseTag = computed(() => {
     close: '接近答案',
     partial: '部分正确',
     irrelevant: '无关',
-    clarify: '需澄清'
+    clarify: '需澄清',
+    solved: '破案！'
   }
   return tags[props.message.responseType] || null
 })
@@ -303,6 +304,13 @@ const renderMarkdown = (content) => {
   color: var(--accent-blue);
 }
 
+.response-tag.tag-solved {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.25), rgba(42, 157, 143, 0.2));
+  color: var(--accent-gold);
+  font-weight: 700;
+  animation: pulse-gold 1.5s ease-in-out infinite;
+}
+
 .message-time {
   color: var(--text-muted);
   margin-left: auto;
@@ -379,6 +387,13 @@ const renderMarkdown = (content) => {
   border-left: 3px solid var(--accent-blue);
 }
 
+/* SOLVED - 破案！金绿渐变边框 + 呼吸灯 */
+.response-solved .message-body {
+  border: 2px solid var(--accent-gold);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(42, 157, 143, 0.08));
+  animation: pulse-gold 2s ease-in-out infinite;
+}
+
 /* ===== 提示消息"便签纸"风格 ===== */
 .is-hint .message-body {
   background: linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.04));
@@ -405,6 +420,7 @@ const renderMarkdown = (content) => {
 .streaming-content {
   line-height: 1.5;
   color: var(--text-secondary);
+  white-space: pre-wrap;
 }
 
 .streaming-content {

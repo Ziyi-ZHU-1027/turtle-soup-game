@@ -101,7 +101,7 @@ export const apiClient = {
     start: (puzzleId) => api.post('/game/start', { puzzleId }),
     getSession: (sessionId) => api.get(`/game/session/${sessionId}`),
     sendMessage: (sessionId, message) => api.post(`/game/${sessionId}/chat`, { message }),
-    sendMessageStream: async (sessionId, message, onChunk, onComplete, onError) => {
+    sendMessageStream: async (sessionId, message, onChunk, onComplete, onError, onProgress, onClues, onSolved, options = {}) => {
       try {
         // 获取认证headers
         let authHeaders = {}
@@ -117,7 +117,7 @@ export const apiClient = {
             'Content-Type': 'application/json',
             ...authHeaders
           },
-          body: JSON.stringify({ message })
+          body: JSON.stringify({ message, hintRequested: options.hintRequested || false })
         })
 
         if (!response.ok) {
@@ -150,11 +150,16 @@ export const apiClient = {
                   if (currentEvent === 'chunk' && onChunk) {
                     onChunk(data.chunk)
                   } else if (currentEvent === 'complete' && onComplete) {
-                    onComplete(data.response, data.type)
+                    onComplete(data.response, data.type, data.progress, data.clues)
                   } else if (currentEvent === 'error' && onError) {
                     onError(data.error)
+                  } else if (currentEvent === 'progress' && onProgress) {
+                    onProgress(data.progress)
+                  } else if (currentEvent === 'clues' && onClues) {
+                    onClues(data.clues)
+                  } else if (currentEvent === 'solved' && onSolved) {
+                    onSolved(data.solution)
                   } else if (currentEvent === 'hint' && onChunk) {
-                    // 提示事件可以视为特殊消息
                     onChunk(`💡 提示: ${data.type === 'close_to_solution' ? '你已接近答案！' : '需要帮助吗？'}`)
                   }
                 } catch (e) {

@@ -108,7 +108,7 @@ router.get('/session/:sessionId', optionalAuth, async (req, res) => {
 router.post('/:sessionId/chat', optionalAuth, async (req, res) => {
   try {
     const { sessionId } = req.params
-    const { message } = req.body
+    const { message, hintRequested } = req.body
     const userId = req.user?.id
 
     if (!message || message.trim().length === 0) {
@@ -134,6 +134,10 @@ router.post('/:sessionId/chat', optionalAuth, async (req, res) => {
 
     // 分析当前对话
     const conversationAnalysis = await conversationService.analyzeConversation(sessionId)
+    // 传递用户是否请求提示
+    if (hintRequested) {
+      conversationAnalysis.hintRequested = true
+    }
 
     // 添加用户消息到数据库
     await conversationService.addMessage(sessionId, 'user', message)
@@ -165,6 +169,7 @@ router.post('/:sessionId/chat', optionalAuth, async (req, res) => {
     res.write('event: start\ndata: {"status": "started"}\n\n')
 
     let fullResponse = ''
+    let chunkBuffer = '' // 缓冲区，用于处理跨chunk的标记
 
     // 获取AI流式回复
     try {
@@ -176,25 +181,58 @@ router.post('/:sessionId/chat', optionalAuth, async (req, res) => {
         // onChunk回调
         (chunk) => {
           fullResponse += chunk
-          res.write(`event: chunk\ndata: ${JSON.stringify({ chunk })}\n\n`)
+          chunkBuffer += chunk
+
+          // 清理已完整的标记
+          chunkBuffer = chunkBuffer.replace(/\[PROGRESS:\d+%?\]/g, '').replace(/\[CLUE:[^\]]+\]/g, '')
+
+          // 如果缓冲区包含未完成的 '['，暂不发送 '[' 及之后的内容
+          const bracketIdx = chunkBuffer.lastIndexOf('[')
+          let sendPart = chunkBuffer
+          if (bracketIdx !== -1) {
+            sendPart = chunkBuffer.substring(0, bracketIdx)
+            chunkBuffer = chunkBuffer.substring(bracketIdx)
+          } else {
+            chunkBuffer = ''
+          }
+
+          if (sendPart) {
+            res.write(`event: chunk\ndata: ${JSON.stringify({ chunk: sendPart })}\n\n`)
+          }
         },
         // onComplete回调
         async (completeResponse) => {
-          // 添加AI回复到数据库
-          await conversationService.addMessage(sessionId, 'assistant', completeResponse)
+          // 提取进度和线索标记
+          const { cleanResponse, progress, clues } = aiService.extractProgressMarkers(completeResponse)
 
-          // 检查是否接近答案（简单逻辑：包含"恭喜"等词）
-          const isCloseToSolution = completeResponse.includes('恭喜') ||
-                                   completeResponse.includes('接近') ||
-                                   completeResponse.includes('对了')
+          // 添加清理后的AI回复到数据库
+          await conversationService.addMessage(sessionId, 'assistant', cleanResponse)
 
-          if (isCloseToSolution) {
-            res.write('event: hint\ndata: {"type": "close_to_solution"}\n\n')
+          const responseType = aiService.analyzeResponseType(completeResponse)
+
+          // 发送进度事件
+          if (progress !== null) {
+            res.write(`event: progress\ndata: ${JSON.stringify({ progress })}\n\n`)
+          }
+
+          // 发送线索事件
+          if (clues.length > 0) {
+            res.write(`event: clues\ndata: ${JSON.stringify({ clues })}\n\n`)
+          }
+
+          // 判断是否破案（进度>=90% 或 AI判断为solved）
+          const isSolved = responseType === 'solved' || (progress !== null && progress >= 90)
+          if (isSolved) {
+            res.write(`event: solved\ndata: ${JSON.stringify({ solution: puzzle.solution })}\n\n`)
+            // 更新会话状态为已完成
+            await gameSessionService.endSession(sessionId, 'completed')
           }
 
           res.write(`event: complete\ndata: ${JSON.stringify({
-            response: completeResponse,
-            type: aiService.analyzeResponseType(completeResponse)
+            response: cleanResponse,
+            type: responseType,
+            progress: progress,
+            clues: clues
           })}\n\n`)
           res.end()
         }

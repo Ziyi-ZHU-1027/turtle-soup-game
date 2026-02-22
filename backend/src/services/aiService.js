@@ -177,59 +177,45 @@ class AIService {
   buildSystemPrompt(puzzle, conversationAnalysis = {}) {
     const { consecutiveNoCount, totalQuestions, questionTypes } = conversationAnalysis
 
-    let prompt = `你是"海龟汤"（情境猜谜）游戏的主持人。
+    let prompt = `你是海龟汤主持人。玩家根据汤面提问，你根据汤底判断并回答。
 
-## 你的身份
-你是一位经验丰富的海龟汤主持人，负责根据玩家的问题提供线索。
-
-## 游戏规则
-1. 玩家会根据"汤面"（谜面）向你提问
-2. 你只能用以下六种方式回答：
-   - "是" — 玩家的猜测完全正确
-   - "不是" — 玩家的猜测完全错误
-   - "无关" — 该问题与谜底完全无关（使用场景：问题涉及的故事元素在谜底中不存在或不重要）
-   - "部分正确" — 玩家的猜测部分正确（需说明哪部分正确）
-   - "需要澄清" — 问题模糊或有歧义，需要玩家澄清
-   - "接近答案" — 玩家的答案非常接近，鼓励继续推理
-
-3. 绝对不能直接透露或暗示谜底内容
-4. 保持回答简洁，不要解释原因，除非使用"部分正确"时需要说明哪部分正确
-
-## 意图判断指南
-- 判断问题是否与谜底相关：如果不相关，回答"无关"
-- 判断问题是否模糊：如果问题有多种解释或不够具体，回答"需要澄清"
-- 判断答案接近度：如果玩家说出了关键真相或非常接近答案，回答"接近答案"并给予鼓励
-- 部分正确判断：如果猜测中有些部分对、有些部分错，回答"部分正确"并简要说明
-
-## 重要原则
-- "无关"回答：仅用于与谜底完全无关的问题，不要滥用
-- "需要澄清"：帮助玩家提出更具体的问题，促进推理
-- "接近答案"：当玩家接近真相时给予正向反馈，激发推理热情
-- 一致性：保持回答风格一致，不要前后矛盾
-
-## 本局汤面
+## 汤面
 ${puzzle.description}
 
-## 本局汤底（绝密！绝对不能告诉玩家！）
-${puzzle.solution}`
+## 汤底（绝密！不能告诉玩家！）
+${puzzle.solution}
+
+## 回答规则
+仔细对照汤底内容判断玩家的问题，用以下方式回答：
+- "是" — 猜测与汤底吻合
+- "不是" — 猜测与汤底不符
+- "部分正确" — 部分吻合，简要说明哪部分对
+- "无关" — 问题与汤底完全无关
+- "接近答案" — 非常接近真相，鼓励继续
+- "恭喜破案！" — 玩家基本还原了整个故事（整体思路对即可）
+
+判断关键：先找到汤底中与问题对应的部分，再判断是否吻合。如果汤底没有提及该信息，回答"无关"而非"不是"。回答要简洁。
+
+## 标记（必须附在回复末尾，玩家看不到）
+每次回复末尾附带：[PROGRESS:XX%] 表示玩家目前对整个谜底的了解程度（0-100）。
+当本轮问答涉及关键信息时（无论回答是/否/部分正确），附带：[CLUE:简短描述] 标记该信息。"不是"的回答如果排除了重要可能性也算关键信息。`
 
     // 动态提示系统
     const dynamicHints = []
 
-    // 连续"不是"提示
     if (consecutiveNoCount >= MAX_CONSECUTIVE_NO) {
-      dynamicHints.push(`玩家已连续收到${consecutiveNoCount}次"不是"回答，可能在某个关键点上卡住了。可以适当引导但不要透露答案。`)
+      dynamicHints.push(`玩家连续${consecutiveNoCount}次"不是"，卡住了。回答后给一个与本题汤底相关的具体方向提示。`)
     }
 
-    // 长时间无进展提示
     if (totalQuestions >= HINT_TRIGGER_THRESHOLD) {
-      // 分析问题类型，找出可能被忽略的方向
-      const mostAsked = Object.entries(questionTypes).sort((a, b) => b[1] - a[1])[0]
       const leastAsked = Object.entries(questionTypes).sort((a, b) => a[1] - b[1])[0]
-
-      if (mostAsked && leastAsked) {
-        dynamicHints.push(`玩家倾向于询问${mostAsked[0]}相关问题（${mostAsked[1]}次），较少关注${leastAsked[0]}方面。`)
+      if (leastAsked) {
+        dynamicHints.push(`玩家已问${totalQuestions}次，建议引导关注${leastAsked[0]}方面。`)
       }
+    }
+
+    if (conversationAnalysis.hintRequested) {
+      dynamicHints.push(`玩家请求提示。根据汤底给一个具体方向提示，不要直接透露答案。`)
     }
 
     // 添加动态提示到prompt
@@ -421,11 +407,42 @@ ${puzzle.solution}`
     return false
   }
 
+  // 从AI回复中提取进度和线索标记，并返回清理后的文本
+  extractProgressMarkers(response) {
+    let cleanResponse = response
+    let progress = null
+    const clues = []
+
+    // 提取 [PROGRESS:XX%]
+    const progressMatch = response.match(/\[PROGRESS:(\d+)%?\]/)
+    if (progressMatch) {
+      progress = parseInt(progressMatch[1], 10)
+      cleanResponse = cleanResponse.replace(/\[PROGRESS:\d+%?\]/g, '')
+    }
+
+    // 提取所有 [CLUE:xxx]
+    const clueRegex = /\[CLUE:([^\]]+)\]/g
+    let clueMatch
+    while ((clueMatch = clueRegex.exec(response)) !== null) {
+      clues.push(clueMatch[1].trim())
+    }
+    cleanResponse = cleanResponse.replace(/\[CLUE:[^\]]+\]/g, '')
+
+    // 清理多余空格
+    cleanResponse = cleanResponse.replace(/\s+$/gm, '').trim()
+
+    return { cleanResponse, progress, clues }
+  }
+
   // 分析回答类型
   analyzeResponseType(response) {
-    const normalized = response.trim().toLowerCase()
+    // 先清理标记再分析
+    const cleaned = response.replace(/\[PROGRESS:\d+%?\]/g, '').replace(/\[CLUE:[^\]]+\]/g, '').trim()
+    const normalized = cleaned.toLowerCase()
 
-    if (normalized.startsWith('是') || normalized.includes('完全正确')) {
+    if (normalized.includes('恭喜破案') || normalized.includes('恭喜你猜对')) {
+      return 'solved'
+    } else if (normalized.startsWith('是') || normalized.includes('完全正确')) {
       return 'yes'
     } else if (normalized.startsWith('不是') || normalized.includes('不对') || normalized.includes('错误') || normalized.includes('不正确')) {
       return 'no'

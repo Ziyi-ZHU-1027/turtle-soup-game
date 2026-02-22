@@ -10,6 +10,9 @@ export const useGameStore = defineStore('game', () => {
   const error = ref(null)
   const streaming = ref(false)
   const streamedResponse = ref('')
+  const progress = ref(0)
+  const confirmedClues = ref([])
+  const solved = ref(false)
 
   // 开始新游戏
   const startGame = async (puzzleId) => {
@@ -42,7 +45,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // 发送消息（流式）
-  const sendMessage = async (content) => {
+  const sendMessage = async (content, { hintRequested = false } = {}) => {
     if (!currentSession.value || !content.trim()) return
 
     loading.value = true
@@ -88,7 +91,7 @@ export const useGameStore = defineStore('game', () => {
           }
         },
         // onComplete回调：流式完成
-        async (completeResponse, responseType) => {
+        async (completeResponse, responseType, newProgress, newClues) => {
           // 将流式消息转换为完成的消息
           const index = messages.value.findIndex(m => m.id === streamingMessageId)
           if (index !== -1) {
@@ -102,21 +105,27 @@ export const useGameStore = defineStore('game', () => {
             }
           }
 
+          // 更新进度
+          if (newProgress !== null && newProgress !== undefined) {
+            progress.value = Math.max(progress.value, newProgress)
+          }
+
+          // 更新线索
+          if (newClues && newClues.length > 0) {
+            for (const clue of newClues) {
+              if (!confirmedClues.value.includes(clue)) {
+                confirmedClues.value.push(clue)
+              }
+            }
+          }
+
+          // 检查是否破案
+          if (responseType === 'solved' || progress.value >= 90) {
+            solved.value = true
+          }
+
           loading.value = false
           streaming.value = false
-
-          // 检查是否需要提示
-          const consecutiveNo = getConsecutiveNoCount()
-          if (consecutiveNo >= 5) {
-            const hintMessage = {
-              id: `hint-${Date.now()}`,
-              role: 'system',
-              content: `已连续收到${consecutiveNo}次"不是"回答，是否需要提示？`,
-              timestamp: new Date(),
-              isHint: true
-            }
-            messages.value.push(hintMessage)
-          }
         },
         // onError回调
         (errorMsg) => {
@@ -137,7 +146,29 @@ export const useGameStore = defineStore('game', () => {
 
           loading.value = false
           streaming.value = false
-        }
+        },
+        // onProgress回调
+        (newProgress) => {
+          if (newProgress !== null && newProgress !== undefined) {
+            progress.value = Math.max(progress.value, newProgress)
+          }
+        },
+        // onClues回调
+        (newClues) => {
+          if (newClues && newClues.length > 0) {
+            for (const clue of newClues) {
+              if (!confirmedClues.value.includes(clue)) {
+                confirmedClues.value.push(clue)
+              }
+            }
+          }
+        },
+        // onSolved回调
+        (solution) => {
+          solved.value = true
+        },
+        // options
+        { hintRequested }
       )
 
       // 注意：流式API是异步的，sendMessage会在流式开始后立即返回
@@ -281,6 +312,9 @@ export const useGameStore = defineStore('game', () => {
     streaming.value = false
     streamedResponse.value = ''
     error.value = null
+    progress.value = 0
+    confirmedClues.value = []
+    solved.value = false
   }
 
   // 获取当前问题数量
@@ -327,6 +361,9 @@ export const useGameStore = defineStore('game', () => {
     error,
     streaming,
     streamedResponse,
+    progress,
+    confirmedClues,
+    solved,
 
     startGame,
     sendMessage,

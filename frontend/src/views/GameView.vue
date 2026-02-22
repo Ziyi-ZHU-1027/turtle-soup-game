@@ -1,5 +1,12 @@
 <template>
   <div class="game-view">
+    <!-- 庆祝特效容器 -->
+    <div v-if="showCelebration" class="celebration-overlay">
+      <div class="confetti-container">
+        <div v-for="i in 50" :key="i" class="confetti" :style="confettiStyle(i)"></div>
+      </div>
+      <div class="celebration-text">🎉 恭喜破案！🎉</div>
+    </div>
     <div class="game-header">
       <h1>海龟汤游戏</h1>
       <p v-if="!gameStore.currentSession">选择一个谜题开始推理</p>
@@ -70,6 +77,9 @@
             :hint-message="hintMessage"
             :show-hint-action="false"
             hint-action-text="查看提示"
+            :progress="gameStore.progress"
+            :clues="gameStore.confirmedClues"
+            :solved="gameStore.solved"
             @send-message="handleSendMessage"
             @hint-action="handleHintAction"
             @reveal="revealSolution"
@@ -108,6 +118,33 @@ const authStore = useAuthStore()
 const selectedPuzzleId = ref(null)
 const hintMessage = ref('')
 const puzzleListCollapsed = ref(true)
+const showCelebration = ref(false)
+
+// 庆祝特效 confetti 样式生成
+const confettiStyle = (i) => {
+  const colors = ['#d4af37', '#2a9d8f', '#e63946', '#4a7fff', '#f4a261', '#e76f51']
+  const color = colors[i % colors.length]
+  const left = Math.random() * 100
+  const delay = Math.random() * 2
+  const duration = 2 + Math.random() * 2
+  const size = 6 + Math.random() * 6
+  return {
+    left: left + '%',
+    animationDelay: delay + 's',
+    animationDuration: duration + 's',
+    backgroundColor: color,
+    width: size + 'px',
+    height: size + 'px',
+  }
+}
+
+// 触发庆祝特效
+const triggerCelebration = () => {
+  showCelebration.value = true
+  setTimeout(() => {
+    showCelebration.value = false
+  }, 5000)
+}
 
 // 加载谜题列表
 const loadPuzzles = async () => {
@@ -130,7 +167,6 @@ const selectPuzzle = async (puzzle) => {
   try {
     selectedPuzzleId.value = puzzle.id
     await gameStore.startGame(puzzle.id)
-    checkForHint()
   } catch (error) {
     console.error('开始游戏失败:', error)
     selectedPuzzleId.value = null
@@ -143,7 +179,6 @@ const handleSendMessage = async (message) => {
 
   try {
     await gameStore.sendMessage(message)
-    checkForHint()
   } catch (error) {
     console.error('发送消息失败:', error)
   }
@@ -151,17 +186,17 @@ const handleSendMessage = async (message) => {
 
 // 处理提示动作
 const handleHintAction = () => {
-  // 可以在这里实现显示更详细的提示
-  hintMessage.value = '提示：尝试关注故事中的关键细节和人物关系'
+  handleHintRequest()
 }
 
-// 处理提示请求
-const handleHintRequest = () => {
-  const hint = gameStore.needsHint()
-  if (hint) {
-    hintMessage.value = hint
-  } else {
-    hintMessage.value = '你可以尝试问更具体的问题，或者从不同角度思考'
+// 处理提示请求 — 通过AI给出与本题相关的提示
+const handleHintRequest = async () => {
+  if (!gameStore.currentSession || gameStore.loading) return
+
+  try {
+    await gameStore.sendMessage('请给我一个提示，帮助我找到正确的方向。', { hintRequested: true })
+  } catch (error) {
+    console.error('请求提示失败:', error)
   }
 }
 
@@ -197,15 +232,31 @@ const resetGame = () => {
   hintMessage.value = ''
 }
 
-// 检查是否需要提示
-const checkForHint = () => {
-  const hint = gameStore.needsHint()
-  if (hint) {
-    hintMessage.value = hint
-  } else {
-    hintMessage.value = ''
+
+// 监听破案状态
+watch(() => gameStore.solved, (isSolved) => {
+  if (isSolved && gameStore.currentSession) {
+    // 触发庆祝特效
+    triggerCelebration()
+
+    // 添加系统消息
+    gameStore.messages.push({
+      id: `solved-${Date.now()}`,
+      role: 'system',
+      content: '🎉 恭喜破案！你成功还原了整个故事的真相！汤底即将揭晓...',
+      timestamp: new Date()
+    })
+
+    // 延迟2秒后自动揭示汤底
+    setTimeout(async () => {
+      try {
+        await gameStore.revealSolution(gameStore.currentSession.id)
+      } catch (err) {
+        console.error('自动揭示汤底失败:', err)
+      }
+    }, 2500)
   }
-}
+})
 
 // 破晓效果：揭晓答案时短暂提亮
 watch(() => gameStore.messages, (msgs) => {
@@ -216,10 +267,6 @@ watch(() => gameStore.messages, (msgs) => {
   }
 }, { deep: true })
 
-// 监听消息变化
-watch(() => gameStore.messages, () => {
-  checkForHint()
-}, { deep: true })
 
 // 组件挂载时加载谜题
 onMounted(() => {
@@ -445,6 +492,77 @@ onMounted(() => {
   color: var(--text-muted);
   font-size: 0.9rem;
   margin-top: 0.5rem;
+}
+
+/* ===== 庆祝特效 ===== */
+
+.celebration-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  animation: celebrationFade 5s ease forwards;
+}
+
+.confetti-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.confetti {
+  position: absolute;
+  top: -10px;
+  border-radius: 2px;
+  animation: confettiFall linear forwards;
+  opacity: 0.9;
+}
+
+.celebration-text {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.5rem;
+  font-weight: 900;
+  font-family: var(--font-serif);
+  color: var(--accent-gold);
+  text-shadow: 0 0 30px rgba(212, 175, 55, 0.5), 0 0 60px rgba(212, 175, 55, 0.2);
+  animation: celebrationTextPop 0.6s cubic-bezier(0.17, 0.89, 0.32, 1.49) forwards;
+  white-space: nowrap;
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes celebrationTextPop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes celebrationFade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 @media (max-width: 768px) {

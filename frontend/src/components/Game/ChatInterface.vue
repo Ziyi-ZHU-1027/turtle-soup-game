@@ -20,6 +20,39 @@
       </div>
     </div>
 
+    <!-- 破案进度条 -->
+    <div v-if="puzzle" class="progress-section">
+      <div class="progress-header">
+        <span class="progress-label">🔍 破案进度</span>
+        <span class="progress-percent" :class="progressColorClass">{{ progress }}%</span>
+      </div>
+      <div class="progress-bar-track">
+        <div
+          class="progress-bar-fill"
+          :style="{ width: progress + '%' }"
+          :class="progressColorClass"
+        ></div>
+      </div>
+      <!-- 已确认线索面板 -->
+      <div v-if="clues.length > 0" class="clues-section">
+        <div class="clues-header" @click="cluesCollapsed = !cluesCollapsed">
+          <span class="clues-label">🗝️ 已确认线索 ({{ clues.length }})</span>
+          <span class="clues-toggle">{{ cluesCollapsed ? '▼' : '▲' }}</span>
+        </div>
+        <div class="clues-list" :class="{ collapsed: cluesCollapsed }">
+          <div
+            v-for="(clue, index) in clues"
+            :key="index"
+            class="clue-tag"
+            :class="{ 'clue-new': index === clues.length - 1 && !cluesCollapsed }"
+          >
+            <span class="clue-icon">✓</span>
+            {{ clue }}
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 聊天消息区域 -->
     <div class="chat-messages-container" ref="messagesContainer">
       <div class="chat-messages">
@@ -161,6 +194,18 @@ const props = defineProps({
   hintActionText: {
     type: String,
     default: '查看提示'
+  },
+  progress: {
+    type: Number,
+    default: 0
+  },
+  clues: {
+    type: Array,
+    default: () => []
+  },
+  solved: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -175,8 +220,16 @@ const emit = defineEmits([
 
 const inputMessage = ref('')
 const tangmianCollapsed = ref(false)
+const cluesCollapsed = ref(false)
 const messagesContainer = ref(null)
 const messageInput = ref(null)
+
+// 进度条颜色
+const progressColorClass = computed(() => {
+  if (props.progress >= 80) return 'progress-high'
+  if (props.progress >= 40) return 'progress-mid'
+  return 'progress-low'
+})
 
 // 计算属性
 const canSend = computed(() => {
@@ -191,12 +244,8 @@ const questionCount = computed(() => {
 const dynamicPlaceholder = computed(() => {
   const count = questionCount.value
   const suggestions = [
-    '不妨问问看：这件事发生在白天吗？',
-    '试试换个角度：受害者的身份重要吗？',
-    '想想看：这个故事和地点有关吗？',
-    '也许可以问：故事中有几个人？',
-    '尝试问：事件的时间线重要吗？',
-    '换个方向：结局和情感有关吗？'
+    '输入你的问题...',
+    '输入你的问题...'
   ]
 
   if (count > 8) {
@@ -403,6 +452,7 @@ onUnmounted(() => {
   line-height: 1.8;
   font-size: 1.05rem;
   letter-spacing: 0.3px;
+  white-space: pre-wrap;
   transition: max-height 0.3s ease, padding 0.3s ease;
   max-height: 200px;
   overflow-y: auto;
@@ -414,6 +464,137 @@ onUnmounted(() => {
   max-height: 0;
   padding: 0;
   overflow: hidden;
+}
+
+/* ===== 破案进度条 ===== */
+
+.progress-section {
+  margin-bottom: 0.75rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.progress-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.progress-percent {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: var(--font-serif);
+}
+
+.progress-percent.progress-low { color: var(--accent-red); }
+.progress-percent.progress-mid { color: var(--accent-gold); }
+.progress-percent.progress-high { color: var(--accent-green); }
+
+.progress-bar-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease, background 0.6s ease;
+}
+
+.progress-bar-fill.progress-low {
+  background: linear-gradient(90deg, var(--accent-red), #e07040);
+}
+
+.progress-bar-fill.progress-mid {
+  background: linear-gradient(90deg, #e07040, var(--accent-gold));
+}
+
+.progress-bar-fill.progress-high {
+  background: linear-gradient(90deg, var(--accent-gold), var(--accent-green));
+}
+
+/* 线索面板 */
+.clues-section {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--glass-border);
+  padding-top: 0.5rem;
+}
+
+.clues-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.clues-label {
+  font-size: 0.8rem;
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.clues-toggle {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.clues-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.clues-list.collapsed {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 0;
+}
+
+.clue-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(42, 157, 143, 0.1);
+  border: 1px solid rgba(42, 157, 143, 0.2);
+  border-radius: 12px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  color: var(--accent-green);
+  animation: fadeIn 0.3s ease;
+}
+
+.clue-tag.clue-new {
+  animation: clueHighlight 1s ease;
+}
+
+.clue-icon {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+@keyframes clueHighlight {
+  0% { background: rgba(212, 175, 55, 0.3); border-color: var(--accent-gold); transform: scale(1.05); }
+  100% { background: rgba(42, 157, 143, 0.1); border-color: rgba(42, 157, 143, 0.2); transform: scale(1); }
 }
 
 /* ===== 聊天消息区 ===== */
