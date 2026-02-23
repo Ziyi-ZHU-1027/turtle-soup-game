@@ -189,6 +189,19 @@ export const apiClient = {
     analyze: (sessionId) => api.post(`/ai/analyze`, { sessionId })
   },
 
+  // 分享相关
+  share: {
+    create: (sessionId) => api.post(`/share/${sessionId}`),
+    get: (shareId) => api.get(`/share/${shareId}`)
+  },
+
+  // 用户进度相关
+  progress: {
+    stats: () => api.get('/progress/stats'),
+    puzzleStatuses: () => api.get('/progress/puzzles'),
+    history: (params) => api.get('/progress/history', { params })
+  },
+
   // 管理相关
   admin: {
     stats: () => api.get('/admin/stats'),

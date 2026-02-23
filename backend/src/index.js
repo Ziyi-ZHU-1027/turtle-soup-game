@@ -57,10 +57,14 @@ app.get('/', (req, res) => {
 const authRoutes = require('./routes/auth');
 const puzzleRoutes = require('./routes/puzzles');
 const gameRoutes = require('./routes/game');
+const shareRoutes = require('./routes/share');
+const progressRoutes = require('./routes/progress');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/puzzles', puzzleRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/share', shareRoutes);
+app.use('/api/progress', progressRoutes);
 
 // 错误处理中间件
 app.use((err, req, res, next) => {

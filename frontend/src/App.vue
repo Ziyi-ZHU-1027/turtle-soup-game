@@ -9,6 +9,7 @@
         <nav class="nav-links">
           <router-link to="/">首页</router-link>
           <router-link to="/game" v-if="authStore.isAuthenticated">游戏</router-link>
+          <router-link to="/profile" v-if="authStore.user">进度</router-link>
           <router-link to="/admin" v-if="authStore.isAdmin">管理</router-link>
         </nav>
         <div class="header-right">
@@ -51,15 +52,18 @@
 <script setup>
 import { useAuthStore } from './stores/auth'
 import { useGameStore } from './stores/game'
+import { useProgressStore } from './stores/progress'
 import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
 const gameStore = useGameStore()
+const progressStore = useProgressStore()
 const router = useRouter()
 
 const handleLogout = async () => {
   gameStore.resetGame()
+  progressStore.reset()
   await authStore.logout()
   router.push('/')
 }

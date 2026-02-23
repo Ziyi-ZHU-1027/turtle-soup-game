@@ -6,6 +6,8 @@ const HomeView = () => import('@/views/HomeView.vue')
 const GameView = () => import('@/views/GameView.vue')
 const AdminView = () => import('@/views/AdminView.vue')
 const LoginView = () => import('@/views/LoginView.vue')
+const ShareView = () => import('@/views/ShareView.vue')
+const ProfileView = () => import('@/views/ProfileView.vue')
 
 const routes = [
   {
@@ -31,6 +33,18 @@ const routes = [
     name: 'login',
     component: LoginView,
     meta: { title: '登录' }
+  },
+  {
+    path: '/share/:shareId',
+    name: 'share',
+    component: ShareView,
+    meta: { title: '分享 - 海龟汤' }
+  },
+  {
+    path: '/profile',
+    name: 'profile',
+    component: ProfileView,
+    meta: { title: '我的进度', requiresAuth: true }
   },
   {
     path: '/:pathMatch(.*)*',

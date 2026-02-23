@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { puzzleService, userService, verifyToken } = require('../services/supabaseService')
+const architectService = require('../services/architectService')
 
 // 中间件：验证管理员权限
 const requireAdmin = async (req, res, next) => {
@@ -105,10 +106,18 @@ router.post('/', requireAdmin, async (req, res) => {
     // 创建谜题
     const puzzle = await puzzleService.createPuzzle(puzzleData, req.user.id)
 
+    // 异步触发 Architect 生成 Logic Profile（不阻塞响应）
+    architectService.generateAndSave(puzzle, puzzleService)
+      .then(profile => {
+        if (profile) console.log(`[Puzzles] 谜题 "${puzzle.title}" 的 Logic Profile 已就绪`)
+      })
+      .catch(err => console.error(`[Puzzles] Logic Profile 生成异常:`, err.message))
+
     res.status(201).json({
       success: true,
       message: '谜题创建成功',
-      data: puzzle
+      data: puzzle,
+      logic_profile_status: 'generating'
     })
   } catch (error) {
     console.error('创建谜题失败:', error)
@@ -128,10 +137,20 @@ router.put('/:id', requireAdmin, async (req, res) => {
     // 更新谜题
     const updatedPuzzle = await puzzleService.updatePuzzle(id, updates, req.user.id)
 
+    // 如果汤面或汤底有变化，重新生成 Logic Profile
+    if (updates.description || updates.solution) {
+      architectService.generateAndSave(updatedPuzzle, puzzleService)
+        .then(profile => {
+          if (profile) console.log(`[Puzzles] 谜题 "${updatedPuzzle.title}" 的 Logic Profile 已重新生成`)
+        })
+        .catch(err => console.error(`[Puzzles] Logic Profile 重新生成异常:`, err.message))
+    }
+
     res.json({
       success: true,
       message: '谜题更新成功',
-      data: updatedPuzzle
+      data: updatedPuzzle,
+      logic_profile_status: (updates.description || updates.solution) ? 'regenerating' : undefined
     })
   } catch (error) {
     console.error('更新谜题失败:', error)

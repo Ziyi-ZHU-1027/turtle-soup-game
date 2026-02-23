@@ -78,6 +78,10 @@ DEEPSEEK_API_KEY=your_deepseek_api_key_here
 
 # 管理员配置
 ADMIN_EMAILS=admin@example.com
+
+# Claude API配置 (Architect层，可选但推荐)
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+ARCHITECT_MODEL=claude-sonnet-4-20250514  # 可选，默认使用Claude Sonnet
 ```
 
 #### 前端配置 (`frontend/.env`)
@@ -131,7 +135,8 @@ npm run dev
 │   │   ├── controllers/       # 控制器
 │   │   ├── routes/           # 路由定义
 │   │   ├── services/         # 业务逻辑
-│   │   │   ├── aiService.js  # AI集成核心
+│   │   │   ├── aiService.js  # AI集成核心 (Host层)
+│   │   │   ├── architectService.js # Architect层 (Claude API)
 │   │   │   └── supabaseService.js # 数据库操作
 │   │   ├── utils/            # 工具函数
 │   │   └── index.js          # 入口文件
@@ -154,7 +159,9 @@ npm run dev
 │
 ├── supabase/                  # 数据库迁移
 │   └── migrations/
-│       └── 001_initial_schema.sql
+│       ├── 001_initial_schema.sql
+│       ├── 002_add_updated_at_to_game_sessions.sql
+│       └── 003_add_logic_profile.sql
 │
 ├── README.md                  # 本文档
 └── .gitignore
@@ -182,6 +189,13 @@ npm run dev
 - `POST /api/game/:id/surrender` - 放弃游戏
 
 ## AI集成
+
+### 双层AI架构 (Architect + Host)
+- **Layer 1: Architect (Claude API)** - 离线深度分析谜题，生成结构化Logic Profile JSON，包含核心诡计、因果链、关键事实、进度里程碑、常见误区、判断参考等
+- **Layer 2: Host (DeepSeek)** - 实时游戏交互，读取预生成的Logic Profile，快速判断玩家问题，无需重复理解故事逻辑
+- **触发机制**: 管理员创建/更新谜题时自动触发Architect生成Logic Profile，存入数据库`logic_profile`字段
+- **向后兼容**: 无Logic Profile时自动降级到原始solution模式，保证现有功能不受影响
+- **智能提示升级**: 基于预分析的多层级提示方向，提供渐进式引导，避免无效重复
 
 ### 系统提示设计
 AI主持人的system prompt包含：
@@ -332,6 +346,8 @@ Backend (secret, server-only):
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `DEEPSEEK_API_KEY`
+- `ANTHROPIC_API_KEY` (optional, for Architect layer)
+- `ARCHITECT_MODEL` (optional, default: claude-sonnet-4-20250514)
 - `ADMIN_EMAILS` (optional)
 
 After adding or changing variables, you must **Redeploy**.
@@ -348,6 +364,13 @@ After adding or changing variables, you must **Redeploy**.
 - `/api/puzzles` returns 500 while `/api/health` is 200: check Supabase project/key mismatch or missing `puzzles` table.
 
 ## 更新日志
+
+### 2026-02-23 (双层AI架构)
+- **Architect-Host双层架构**: 引入Claude API作为Architect，离线深度分析谜题生成结构化Logic Profile；DeepSeek作为Host实时读取Profile快速响应
+- **结构化Logic Profile**: 预分析谜题的核心诡计、因果链、关键事实、进度里程碑、常见误区、判断参考，存入数据库
+- **智能提示升级**: 卡住时从预分析的多层级提示方向中选择，避免重复无效提示
+- **AI判断一致性提升**: Host基于结构化Profile判断，不再需要实时理解故事逻辑，回答准确率和进度评估更稳定
+- **向后兼容**: 无Logic Profile时自动降级到原始solution模式
 
 ### 2026-02-22 (v2)
 - **破案进度系统**: AI实时评估玩家对谜底的了解程度，前端展示渐变进度条（红→金→绿）

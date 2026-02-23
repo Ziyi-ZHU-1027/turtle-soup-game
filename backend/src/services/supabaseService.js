@@ -274,6 +274,139 @@ const conversationService = {
   }
 }
 
+// 生成短分享ID
+const generateShareId = (length = 8) => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return result
+}
+
+// 分享相关操作
+const shareService = {
+  // 创建分享链接（幂等）
+  createShare: async (sessionId) => {
+    // 检查是否已存在
+    const { data: existing } = await supabase
+      .from('shared_sessions')
+      .select('share_id')
+      .eq('session_id', sessionId)
+      .single()
+
+    if (existing) return existing
+
+    const shareId = generateShareId()
+    const { data, error } = await supabase
+      .from('shared_sessions')
+      .insert({ share_id: shareId, session_id: sessionId })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  },
+
+  // 根据 shareId 获取分享数据
+  getSharedSession: async (shareId) => {
+    const { data: share, error: shareErr } = await supabase
+      .from('shared_sessions')
+      .select('session_id')
+      .eq('share_id', shareId)
+      .single()
+
+    if (shareErr || !share) throw new Error('分享链接不存在或已失效')
+
+    const { data: session, error: sessErr } = await supabase
+      .from('game_sessions')
+      .select('*, puzzle:puzzles (id, title, description, solution, difficulty, tags)')
+      .eq('id', share.session_id)
+      .single()
+
+    if (sessErr) throw sessErr
+
+    const { data: messages, error: msgErr } = await supabase
+      .from('conversations')
+      .select('role, content, created_at, metadata')
+      .eq('session_id', share.session_id)
+      .order('created_at', { ascending: true })
+
+    if (msgErr) throw msgErr
+
+    return { session, messages }
+  }
+}
+
+// 用户进度相关操作
+const progressService = {
+  // 获取用户聚合统计
+  getUserStats: async (userId) => {
+    const { data, error } = await supabase
+      .from('game_sessions')
+      .select('status, puzzle_id')
+      .eq('user_id', userId)
+
+    if (error) throw error
+
+    const total = data.length
+    const completed = data.filter(s => s.status === 'completed').length
+    const abandoned = data.filter(s => s.status === 'abandoned').length
+    const active = data.filter(s => s.status === 'active').length
+    const uniquePuzzles = new Set(data.map(s => s.puzzle_id)).size
+    const solveRate = total > 0 ? Math.round((completed / total) * 100) : 0
+
+    return { total, completed, abandoned, active, uniquePuzzles, solveRate }
+  },
+
+  // 获取每个谜题的最佳状态
+  getUserPuzzleStatuses: async (userId) => {
+    const { data, error } = await supabase
+      .from('game_sessions')
+      .select('puzzle_id, status, id')
+      .eq('user_id', userId)
+      .order('start_time', { ascending: false })
+
+    if (error) throw error
+
+    const priority = { completed: 3, active: 2, abandoned: 1 }
+    const best = {}
+
+    for (const s of data) {
+      const current = best[s.puzzle_id]
+      if (!current || priority[s.status] > priority[current.status]) {
+        best[s.puzzle_id] = { status: s.status, session_id: s.id }
+      }
+    }
+
+    return Object.entries(best).map(([puzzleId, info]) => ({
+      puzzle_id: puzzleId,
+      status: info.status,
+      session_id: info.session_id
+    }))
+  },
+
+  // 获取分页历史列表
+  getUserHistory: async (userId, page = 1, limit = 10) => {
+    const from = (page - 1) * limit
+    const to = from + limit - 1
+
+    const { data, error, count } = await supabase
+      .from('game_sessions')
+      .select('id, status, start_time, end_time, puzzle:puzzles (id, title, difficulty, tags)', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('start_time', { ascending: false })
+      .range(from, to)
+
+    if (error) throw error
+
+    return {
+      data,
+      pagination: { page, limit, total: count, totalPages: Math.ceil(count / limit) }
+    }
+  }
+}
+
 // 用户相关操作
 const userService = {
   // 获取用户信息
@@ -301,5 +434,7 @@ module.exports = {
   puzzleService,
   gameSessionService,
   conversationService,
-  userService
+  userService,
+  shareService,
+  progressService
 }

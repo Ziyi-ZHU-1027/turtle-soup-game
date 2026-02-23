@@ -1,5 +1,8 @@
 <template>
   <div class="game-view">
+    <!-- 分享 toast -->
+    <div v-if="shareToast" class="share-toast">{{ shareToast }}</div>
+
     <!-- 庆祝特效容器 -->
     <div v-if="showCelebration" class="celebration-overlay">
       <div class="confetti-container">
@@ -54,7 +57,14 @@
                 @click="selectPuzzle(puzzle)"
                 :disabled="gameStore.currentSession"
               >
-                <h4>{{ puzzle.title }}</h4>
+                <div class="puzzle-title-row">
+                  <h4>{{ puzzle.title }}</h4>
+                  <span
+                    v-if="authStore.user && progressStore.puzzleStatuses[puzzle.id]"
+                    class="puzzle-status-badge"
+                    :class="`ps-${progressStore.puzzleStatuses[puzzle.id].status}`"
+                  >{{ puzzleStatusLabel(progressStore.puzzleStatuses[puzzle.id].status) }}</span>
+                </div>
                 <div class="puzzle-meta">
                   <span class="difficulty">难度: {{ puzzleStore.getDifficultyStars(puzzle.difficulty) }}</span>
                   <span class="tags">{{ puzzle.tags?.join(', ') }}</span>
@@ -80,12 +90,14 @@
             :progress="gameStore.progress"
             :clues="gameStore.confirmedClues"
             :solved="gameStore.solved"
+            :session-ended="sessionEnded"
             @send-message="handleSendMessage"
             @hint-action="handleHintAction"
             @reveal="revealSolution"
             @surrender="surrenderGame"
             @new-game="resetGame"
             @hint-request="handleHintRequest"
+            @share="handleShare"
           />
         </div>
 
@@ -105,20 +117,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { usePuzzleStore } from '@/stores/puzzles'
 import { useGameStore } from '@/stores/game'
 import { useAuthStore } from '@/stores/auth'
+import { useProgressStore } from '@/stores/progress'
+import { apiClient } from '@/services/api'
 import ChatInterface from '@/components/Game/ChatInterface.vue'
 
 const puzzleStore = usePuzzleStore()
 const gameStore = useGameStore()
 const authStore = useAuthStore()
+const progressStore = useProgressStore()
 
 const selectedPuzzleId = ref(null)
 const hintMessage = ref('')
 const puzzleListCollapsed = ref(true)
 const showCelebration = ref(false)
+const shareToast = ref('')
+
+// 谜题状态标签
+const puzzleStatusLabel = (status) => {
+  return { completed: '已完成', active: '进行中', abandoned: '已放弃' }[status] || ''
+}
 
 // 庆祝特效 confetti 样式生成
 const confettiStyle = (i) => {
@@ -224,6 +245,28 @@ const surrenderGame = async () => {
   }
 }
 
+// 分享游戏
+const handleShare = async () => {
+  if (!gameStore.currentSession) return
+  try {
+    const res = await apiClient.share.create(gameStore.currentSession.id)
+    const url = `${window.location.origin}/share/${res.shareId}`
+    await navigator.clipboard.writeText(url)
+    shareToast.value = '分享链接已复制到剪贴板'
+    setTimeout(() => { shareToast.value = '' }, 3000)
+  } catch (err) {
+    console.error('生成分享链接失败:', err)
+    shareToast.value = '分享失败，请重试'
+    setTimeout(() => { shareToast.value = '' }, 3000)
+  }
+}
+
+// 判断游戏是否已结束
+const sessionEnded = computed(() => {
+  const status = gameStore.currentSession?.status
+  return status === 'completed' || status === 'abandoned'
+})
+
 // 重置游戏
 const resetGame = () => {
   if (gameStore.currentSession && !confirm('确定要重置游戏吗？当前进度将丢失。')) return
@@ -272,7 +315,7 @@ watch(() => gameStore.messages, (msgs) => {
 onMounted(() => {
   loadPuzzles()
   if (authStore.user) {
-    // 可以加载用户之前的会话
+    progressStore.fetchPuzzleStatuses()
   }
 })
 </script>
@@ -446,10 +489,42 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+.puzzle-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
 .puzzle-item h4 {
   color: var(--text-secondary);
-  margin-bottom: 0.5rem;
   font-size: 1rem;
+  margin: 0;
+}
+
+.puzzle-status-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ps-completed {
+  background: rgba(42, 157, 143, 0.15);
+  color: var(--accent-green, #2a9d8f);
+}
+
+.ps-active {
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--accent-gold);
+}
+
+.ps-abandoned {
+  background: rgba(128, 133, 150, 0.15);
+  color: var(--text-muted);
 }
 
 .puzzle-meta {
@@ -492,6 +567,27 @@ onMounted(() => {
   color: var(--text-muted);
   font-size: 0.9rem;
   margin-top: 0.5rem;
+}
+
+/* ===== 分享 Toast ===== */
+.share-toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-gold);
+  color: var(--text-secondary);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-sm);
+  z-index: 9999;
+  animation: toastFade 3s ease forwards;
+  font-size: 0.9rem;
+}
+
+@keyframes toastFade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 /* ===== 庆祝特效 ===== */

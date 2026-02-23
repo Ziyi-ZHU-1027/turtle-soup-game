@@ -152,6 +152,15 @@
           >
             ↩ 换一题
           </button>
+          <button
+            v-if="solved || sessionEnded"
+            type="button"
+            class="btn-share"
+            @click="$emit('share')"
+            title="分享对话"
+          >
+            🔗 分享
+          </button>
         </div>
       </form>
     </div>
@@ -206,6 +215,10 @@ const props = defineProps({
   solved: {
     type: Boolean,
     default: false
+  },
+  sessionEnded: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -215,7 +228,8 @@ const emit = defineEmits([
   'reveal',
   'surrender',
   'new-game',
-  'hint-request'
+  'hint-request',
+  'share'
 ])
 
 const inputMessage = ref('')
@@ -824,6 +838,15 @@ onUnmounted(() => {
 
 .btn-surrender:hover:not(:disabled) {
   background-color: rgba(128, 133, 150, 0.08) !important;
+}
+
+.btn-share {
+  border-color: rgba(74, 127, 255, 0.3) !important;
+  color: var(--accent-blue, #4a7fff) !important;
+}
+
+.btn-share:hover {
+  background-color: rgba(74, 127, 255, 0.08) !important;
 }
 
 @media (max-width: 640px) {

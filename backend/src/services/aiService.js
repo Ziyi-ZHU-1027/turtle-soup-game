@@ -6,160 +6,6 @@ const MAX_HISTORY_TURNS = parseInt(process.env.MAX_HISTORY_TURNS) || 20
 const MAX_CONSECUTIVE_NO = parseInt(process.env.MAX_CONSECUTIVE_NO) || 5
 const HINT_TRIGGER_THRESHOLD = parseInt(process.env.HINT_TRIGGER_THRESHOLD) || 10
 
-// 智能备忘录服务 - 简单标注版
-class SimpleMemoService {
-  constructor() {
-    // 关键线索关键词库
-    this.keyClueKeywords = [
-      '谁', '什么人', '人物', '身份', '角色',
-      '什么时间', '时间', '何时', '日期',
-      '什么地点', '地点', '哪里', '位置', '场所',
-      '为什么', '原因', '动机', '目的',
-      '怎么', '如何', '方式', '方法', '手段',
-      '什么', '东西', '物品', '物件', '物体',
-      '死亡', '死', '杀害', '杀', '谋杀', '自杀',
-      '受伤', '伤害', '伤', '血迹', '血',
-      '钱', '金钱', '财富', '财产', '遗产',
-      '关系', '关联', '联系', '连接',
-      '证据', '线索', '痕迹', '迹象'
-    ]
-
-    // 线索类型映射
-    this.clueTypeMap = {
-      '人物': ['谁', '什么人', '人物', '身份', '角色'],
-      '时间': ['什么时间', '时间', '何时', '日期'],
-      '地点': ['什么地点', '地点', '哪里', '位置', '场所'],
-      '动机': ['为什么', '原因', '动机', '目的'],
-      '方法': ['怎么', '如何', '方式', '方法', '手段'],
-      '物品': ['什么', '东西', '物品', '物件', '物体'],
-      '事件': ['死亡', '死', '杀害', '杀', '谋杀', '自杀', '受伤', '伤害', '伤'],
-      '财务': ['钱', '金钱', '财富', '财产', '遗产'],
-      '关系': ['关系', '关联', '联系', '连接'],
-      '证据': ['证据', '线索', '痕迹', '迹象']
-    }
-  }
-
-  // 提取用户问题中的关键名词和关键词
-  extractKeyTerms(userQuestion) {
-    const terms = []
-    const question = userQuestion.toLowerCase()
-
-    // 检查关键词匹配
-    for (const keyword of this.keyClueKeywords) {
-      if (question.includes(keyword)) {
-        terms.push(keyword)
-      }
-    }
-
-    // 提取可能的实体名词（简单中文名词识别）
-    // 这是一个简化版本，实际应用中可以使用更复杂的NLP
-    const nounPatterns = [
-      /(\w+)的(\w+)/g,    // "某某的某某"
-      /(\w+)是(\w+)/g,    // "某某是某某"
-      /(\w+)在(\w+)/g,    // "某某在某某"
-      /(\w+)有(\w+)/g,    // "某某有某某"
-      /(\w+)被(\w+)/g,    // "某某被某某"
-    ]
-
-    for (const pattern of nounPatterns) {
-      const matches = [...question.matchAll(pattern)]
-      for (const match of matches) {
-        if (match[1] && match[1].length > 1) terms.push(match[1])
-        if (match[2] && match[2].length > 1) terms.push(match[2])
-      }
-    }
-
-    // 去重并过滤短词
-    const uniqueTerms = [...new Set(terms.filter(term => term.length > 1))]
-
-    // 评估重要性（简化版：基于词频和位置）
-    const scoredTerms = uniqueTerms.map(term => {
-      let score = 1
-
-      // 关键词库中的词得分更高
-      if (this.keyClueKeywords.includes(term)) score += 2
-
-      // 出现在问题开头的词得分更高
-      if (question.startsWith(term) || question.indexOf(` ${term}`) < 10) score += 1
-
-      return { term, score }
-    })
-
-    // 按得分排序，返回前3个
-    return scoredTerms
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
-      .map(item => item.term)
-  }
-
-  // 确定线索类型
-  determineClueType(keyword) {
-    for (const [type, keywords] of Object.entries(this.clueTypeMap)) {
-      if (keywords.includes(keyword)) {
-        return type
-      }
-    }
-    return '其他'
-  }
-
-  // 生成简单标注
-  generateSimpleMemo(keyTerms) {
-    if (keyTerms.length === 0) {
-      return null
-    }
-
-    const memos = []
-    for (const term of keyTerms) {
-      const clueType = this.determineClueType(term)
-      memos.push({
-        term,
-        type: clueType,
-        memo: `${clueType}: 关注"${term}"相关线索`
-      })
-    }
-
-    return memos
-  }
-
-  // 主方法：分析用户问题并生成备忘录
-  analyzeQuestion(userQuestion) {
-    const keyTerms = this.extractKeyTerms(userQuestion)
-    const memos = this.generateSimpleMemo(keyTerms)
-
-    return {
-      hasClues: keyTerms.length > 0,
-      keyTerms,
-      memos
-    }
-  }
-}
-
-// 简单接近度分析器
-class SimpleProximityAnalyzer {
-  // 基于关键词匹配的接近度判断
-  checkKeywords(userAnswer, realSolution) {
-    const answerWords = userAnswer.toLowerCase().split(/[，。！？、\s]+/)
-    const solutionWords = realSolution.toLowerCase().split(/[，。！？、\s]+/)
-
-    const answerSet = new Set(answerWords.filter(word => word.length > 1))
-    const solutionSet = new Set(solutionWords.filter(word => word.length > 1))
-
-    // 计算交集
-    const intersection = [...answerSet].filter(word => solutionSet.has(word))
-
-    // 计算匹配度
-    const matchRatio = solutionSet.size > 0 ? intersection.length / solutionSet.size : 0
-
-    return {
-      matchWords: intersection,
-      matchCount: intersection.length,
-      totalSolutionWords: solutionSet.size,
-      matchRatio: Math.round(matchRatio * 100) / 100,
-      isClose: matchRatio >= 0.6, // 60%以上匹配度视为接近
-      isVeryClose: matchRatio >= 0.8 // 80%以上匹配度视为非常接近
-    }
-  }
-}
 
 class AIService {
   constructor() {
@@ -167,14 +13,160 @@ class AIService {
     if (!this.apiKey) {
       console.error('缺少DeepSeek API Key配置')
     }
-
-    // 初始化智能备忘录服务和接近度分析器
-    this.memoService = new SimpleMemoService()
-    this.proximityAnalyzer = new SimpleProximityAnalyzer()
   }
 
-  // 构建system prompt
+  // 构建system prompt — 根据是否有 Logic Profile 选择不同策略
   buildSystemPrompt(puzzle, conversationAnalysis = {}) {
+    if (puzzle.logic_profile) {
+      return this.buildHostPromptWithProfile(puzzle, conversationAnalysis)
+    }
+    return this.buildHostPromptFallback(puzzle, conversationAnalysis)
+  }
+
+  // Layer 2: Host prompt — 基于 Architect 预生成的 Logic Profile
+  buildHostPromptWithProfile(puzzle, conversationAnalysis) {
+    const { consecutiveNoCount, totalQuestions, questionTypes } = conversationAnalysis
+    const lp = puzzle.logic_profile
+
+    // 格式化关键事实
+    const keyFactsText = lp.key_facts
+      .map(f => `- [${f.importance}][${f.category}] ${f.fact}`)
+      .join('\n')
+
+    // 格式化进度里程碑
+    const milestonesText = lp.progress_milestones
+      .map(m => `- ${m.range}%: ${m.description}`)
+      .join('\n')
+
+    // 格式化判断参考
+    const yesQs = lp.answer_guide.common_yes_questions
+      .map(q => `- "${q}" → 是`)
+      .join('\n')
+    const noQs = lp.answer_guide.common_no_questions
+      .map(q => `- "${q}" → 不是`)
+      .join('\n')
+    const trickyQs = lp.answer_guide.tricky_questions
+      .map(q => `- "${q.question}" → ${q.answer}（${q.reasoning}）`)
+      .join('\n')
+
+    let prompt = `你是海龟汤主持人。以下是预分析的谜题逻辑档案，请严格依据它来判断玩家的提问。
+
+## 汤面
+${puzzle.description}
+
+## 逻辑档案
+
+### 核心诡计
+${lp.core_trick}
+
+### 因果链
+${lp.causal_chain}
+
+### 关键事实
+${keyFactsText}
+
+### 破案标准
+${lp.solve_criteria}
+
+### 进度里程碑
+${milestonesText}
+
+### 常见误区（玩家可能误入的方向）
+${lp.red_herrings.map(r => `- ${r}`).join('\n')}
+
+### 判断参考
+典型"是"的问题：
+${yesQs}
+
+典型"不是"的问题：
+${noQs}
+
+易错边界问题：
+${trickyQs}
+
+## 回答规则
+根据逻辑档案判断玩家的问题，用以下方式回答：
+- "是" — 猜测与关键事实吻合
+- "不是" — 猜测与关键事实不符
+- "部分正确" — 部分吻合，简要说明哪部分对
+- "无关" — 问题与谜题核心无关（档案中未涉及的信息回答"无关"而非"不是"）
+- "接近答案" — 非常接近真相，鼓励继续
+- "恭喜破案！" — 玩家满足了破案标准
+
+判断关键：先在关键事实和判断参考中找到对应项，再决定回答。回答要简洁。
+
+## 破案判断标准（最重要！）
+参照上方"破案标准"，判断玩家是否已经理解了故事的**核心逻辑**：
+1. 综合回顾整个对话中玩家累积获得的所有信息
+2. 对照破案标准，判断核心因果链是否已被理解
+3. 只要玩家抓住了核心诡计和关键转折，即使表述不完全一样，也应判定为破案
+4. 不需要玩家说出每一个细节，只要核心逻辑链条完整即可
+
+## 标记规则（必须附在回复末尾，玩家看不到）
+
+### 进度标记 [PROGRESS:XX%]
+每次回复末尾必须附带。严格参照"进度里程碑"评估玩家当前的理解程度：
+${milestonesText}
+评估时要综合考虑玩家在整个对话中累积获得的所有信息，不仅仅看当前这一条问题。
+
+### 线索标记 [CLUE:简短描述]
+当本轮问答**推进了玩家对真相的理解**时附带此标记。收录标准：
+1. **"是"的回答**：玩家确认了一个关键事实 → 记录确认了什么
+2. **"不是"的回答**：玩家排除了一个重要的错误方向 → 记录"排除：xxx"
+3. **"部分正确"**：记录正确的部分
+4. **"无关"的回答**：通常不标记，除非是常见误区中的方向
+不要标记无意义的试探性问题。只标记对破案推理有实质帮助的信息。`
+
+    // 动态提示系统
+    const dynamicHints = []
+
+    if (consecutiveNoCount >= MAX_CONSECUTIVE_NO) {
+      // 从 Logic Profile 中选择提示方向
+      const hintIdx = Math.min(
+        Math.floor(consecutiveNoCount / MAX_CONSECUTIVE_NO) - 1,
+        lp.hint_directions.length - 1
+      )
+      const hint = lp.hint_directions[hintIdx]
+      if (hint) {
+        dynamicHints.push(`玩家连续${consecutiveNoCount}次"不是"，卡住了。请用这个方向引导：${hint.hint}`)
+      } else {
+        dynamicHints.push(`玩家连续${consecutiveNoCount}次"不是"，卡住了。给一个方向提示。`)
+      }
+    }
+
+    if (totalQuestions >= HINT_TRIGGER_THRESHOLD) {
+      const leastAsked = Object.entries(questionTypes || {}).sort((a, b) => a[1] - b[1])[0]
+      if (leastAsked) {
+        dynamicHints.push(`玩家已问${totalQuestions}次，建议引导关注${leastAsked[0]}方面。`)
+      }
+    }
+
+    if (conversationAnalysis.hintRequested) {
+      // 选择一个尚未使用的提示方向
+      const hintIdx = Math.min(
+        Math.floor((totalQuestions || 0) / 5),
+        lp.hint_directions.length - 1
+      )
+      const hint = lp.hint_directions[hintIdx]
+      if (hint) {
+        dynamicHints.push(`玩家请求提示。请用这个方向引导：${hint.hint}（不要直接透露答案）`)
+      } else {
+        dynamicHints.push(`玩家请求提示。给一个具体方向提示，不要直接透露答案。`)
+      }
+    }
+
+    if (dynamicHints.length > 0) {
+      prompt += '\n\n## 主持人提示（仅为你可见）\n'
+      dynamicHints.forEach(hint => {
+        prompt += `- ${hint}\n`
+      })
+    }
+
+    return prompt
+  }
+
+  // 降级方案：没有 Logic Profile 时使用原始 solution（向后兼容）
+  buildHostPromptFallback(puzzle, conversationAnalysis) {
     const { consecutiveNoCount, totalQuestions, questionTypes } = conversationAnalysis
 
     let prompt = `你是海龟汤主持人。玩家根据汤面提问，你根据汤底判断并回答。
@@ -192,13 +184,35 @@ ${puzzle.solution}
 - "部分正确" — 部分吻合，简要说明哪部分对
 - "无关" — 问题与汤底完全无关
 - "接近答案" — 非常接近真相，鼓励继续
-- "恭喜破案！" — 玩家基本还原了整个故事（整体思路对即可）
+- "恭喜破案！" — 玩家已理解故事的核心逻辑（见下方破案标准）
 
 判断关键：先找到汤底中与问题对应的部分，再判断是否吻合。如果汤底没有提及该信息，回答"无关"而非"不是"。回答要简洁。
 
-## 标记（必须附在回复末尾，玩家看不到）
-每次回复末尾附带：[PROGRESS:XX%] 表示玩家目前对整个谜底的了解程度（0-100）。
-当本轮问答涉及关键信息时（无论回答是/否/部分正确），附带：[CLUE:简短描述] 标记该信息。"不是"的回答如果排除了重要可能性也算关键信息。`
+## 破案判断标准（最重要！）
+判断玩家是否破案时，不要逐字逐句匹配，而要看玩家是否理解了故事的**核心逻辑**：
+1. 综合回顾玩家在整个对话过程中获得的所有信息（包括"是"和"不是"的回答）
+2. 判断玩家是否已经理解了：**谁做了什么、为什么这么做、导致了什么结果**
+3. 只要玩家抓住了故事的关键转折点和核心因果关系，即使表述不完全一样，也应该判定为破案
+4. 不需要玩家说出每一个细节，只要核心逻辑链条完整即可
+
+## 标记规则（必须附在回复末尾，玩家看不到）
+
+### 进度标记 [PROGRESS:XX%]
+每次回复末尾必须附带。进度表示玩家对**故事核心逻辑**的理解程度，不是对具体措辞的匹配度：
+- 0-20%：玩家还在摸索方向
+- 20-50%：玩家已确认部分关键要素（如人物关系、事件背景等）
+- 50-75%：玩家已理解大部分核心要素，但关键转折或因果关系尚未明确
+- 75-90%：玩家已非常接近真相，只差最后的关键拼图
+- 90-100%：玩家已基本理解整个故事的核心逻辑
+评估时要综合考虑玩家在整个对话中累积获得的所有信息，不仅仅看当前这一条问题。
+
+### 线索标记 [CLUE:简短描述]
+当本轮问答**推进了玩家对真相的理解**时附带此标记。收录标准：
+1. **"是"的回答**：玩家确认了一个与汤底相关的事实 → 记录确认了什么
+2. **"不是"的回答**：玩家排除了一个重要的错误方向 → 记录"排除：xxx"（例如"排除：不是谋杀而是意外"）
+3. **"部分正确"**：记录正确的部分是什么
+4. **"无关"的回答**：通常不需要标记，除非这个方向是大多数人会误解的
+不要标记无意义的试探性问题。只标记对破案推理有实质帮助的信息。`
 
     // 动态提示系统
     const dynamicHints = []
@@ -208,7 +222,7 @@ ${puzzle.solution}
     }
 
     if (totalQuestions >= HINT_TRIGGER_THRESHOLD) {
-      const leastAsked = Object.entries(questionTypes).sort((a, b) => a[1] - b[1])[0]
+      const leastAsked = Object.entries(questionTypes || {}).sort((a, b) => a[1] - b[1])[0]
       if (leastAsked) {
         dynamicHints.push(`玩家已问${totalQuestions}次，建议引导关注${leastAsked[0]}方面。`)
       }
@@ -218,7 +232,6 @@ ${puzzle.solution}
       dynamicHints.push(`玩家请求提示。根据汤底给一个具体方向提示，不要直接透露答案。`)
     }
 
-    // 添加动态提示到prompt
     if (dynamicHints.length > 0) {
       prompt += '\n\n## 主持人提示（仅为你可见）\n'
       dynamicHints.forEach(hint => {
@@ -265,19 +278,19 @@ ${puzzle.solution}
         data: {
           model: DEEPSEEK_MODEL,
           messages: messages,
-          temperature: 0.1,  // 从0.3降低到0.1，提高一致性
-          top_p: 0.9,        // 控制多样性
-          frequency_penalty: 0.1,  // 减少重复
-          presence_penalty: 0.1,   // 鼓励新内容
-          max_tokens: 200,   // 限制回复长度
+          temperature: 0.1,
+          top_p: 0.9,
+          frequency_penalty: 0.1,
+          presence_penalty: 0.1,
+          max_tokens: 200,
           stream: stream
         },
         responseType: stream ? 'stream' : 'json',
-        timeout: 30000 // 30秒超时
+        timeout: 30000
       })
 
       if (stream) {
-        return response.data // 返回流
+        return response.data
       } else {
         return response.data.choices[0]?.message?.content || '未知回复'
       }
@@ -329,82 +342,22 @@ ${puzzle.solution}
 
   // 主方法：获取AI回复
   async getAIResponse(puzzle, conversationHistory, conversationAnalysis, userQuestion) {
-    // 1. 构建system prompt
     const systemPrompt = this.buildSystemPrompt(puzzle, conversationAnalysis)
-
-    // 2. 构建完整消息列表
     const messages = this.buildMessages(systemPrompt, conversationHistory)
+    messages.push({ role: 'user', content: userQuestion })
 
-    // 3. 添加用户新问题
-    messages.push({
-      role: 'user',
-      content: userQuestion
-    })
-
-    // 4. 智能备忘录分析
-    const memoAnalysis = this.memoService.analyzeQuestion(userQuestion)
-
-    // 5. 接近度分析（如果用户的问题像是猜测答案）
-    let proximityAnalysis = null
-    const isGuess = this.isGuessAnswer(userQuestion)
-    if (isGuess && puzzle.solution) {
-      proximityAnalysis = this.proximityAnalyzer.checkKeywords(userQuestion, puzzle.solution)
-    }
-
-    // 6. 调用API
     const aiResponse = await this.callDeepSeekAPI(messages)
-
-    // 7. 分析回答类型（用于统计）
     const responseType = this.analyzeResponseType(aiResponse)
-
-    // 8. 判断是否需要庆祝（接近答案或完全正确）
-    let needsCelebration = false
-    let celebrationLevel = 'none'
-
-    if (responseType === 'yes' || responseType === 'close') {
-      needsCelebration = true
-      celebrationLevel = responseType === 'yes' ? 'full' : 'medium'
-    } else if (proximityAnalysis && proximityAnalysis.isClose) {
-      needsCelebration = true
-      celebrationLevel = proximityAnalysis.isVeryClose ? 'medium' : 'light'
-    }
+    const { progress } = this.extractProgressMarkers(aiResponse)
+    const needsCelebration = responseType === 'solved' || responseType === 'close' || (progress !== null && progress >= 90)
+    const celebrationLevel = responseType === 'solved' ? 'full' : (responseType === 'close' || (progress !== null && progress >= 75)) ? 'medium' : 'none'
 
     return {
       content: aiResponse,
       type: responseType,
-      memo: memoAnalysis,
-      proximity: proximityAnalysis,
       needsCelebration,
       celebrationLevel
     }
-  }
-
-  // 判断用户问题是否是猜测答案
-  isGuessAnswer(userQuestion) {
-    const question = userQuestion.toLowerCase()
-    const guessPatterns = [
-      '是', '应该是', '可能是', '一定是', '肯定是',
-      '就是', '就是吧', '对不对', '对吗', '是吗',
-      '会不会', '有没有', '是不是', '有没有可能是'
-    ]
-
-    // 检查是否包含猜测模式
-    for (const pattern of guessPatterns) {
-      if (question.includes(pattern)) {
-        return true
-      }
-    }
-
-    // 检查是否以问号结尾的陈述句（常见于猜测）
-    if (question.trim().endsWith('?') || question.trim().endsWith('？')) {
-      const withoutQuestionMark = question.replace(/[?？]/g, '').trim()
-      // 如果句子较短（少于15字符），可能是猜测
-      if (withoutQuestionMark.length < 15) {
-        return true
-      }
-    }
-
-    return false
   }
 
   // 从AI回复中提取进度和线索标记，并返回清理后的文本
@@ -436,7 +389,6 @@ ${puzzle.solution}
 
   // 分析回答类型
   analyzeResponseType(response) {
-    // 先清理标记再分析
     const cleaned = response.replace(/\[PROGRESS:\d+%?\]/g, '').replace(/\[CLUE:[^\]]+\]/g, '').trim()
     const normalized = cleaned.toLowerCase()
 
@@ -465,39 +417,17 @@ ${puzzle.solution}
     const messages = this.buildMessages(systemPrompt, conversationHistory)
     messages.push({ role: 'user', content: userQuestion })
 
-    // 智能备忘录分析
-    const memoAnalysis = this.memoService.analyzeQuestion(userQuestion)
-
-    // 接近度分析（如果用户的问题像是猜测答案）
-    let proximityAnalysis = null
-    const isGuess = this.isGuessAnswer(userQuestion)
-    if (isGuess && puzzle.solution) {
-      proximityAnalysis = this.proximityAnalyzer.checkKeywords(userQuestion, puzzle.solution)
-    }
-
     const stream = await this.callDeepSeekAPI(messages, true)
     const fullResponse = await this.handleStreamResponse(stream, onChunk, onComplete)
 
-    // 分析回答类型
     const responseType = this.analyzeResponseType(fullResponse)
-
-    // 判断是否需要庆祝
-    let needsCelebration = false
-    let celebrationLevel = 'none'
-
-    if (responseType === 'yes' || responseType === 'close') {
-      needsCelebration = true
-      celebrationLevel = responseType === 'yes' ? 'full' : 'medium'
-    } else if (proximityAnalysis && proximityAnalysis.isClose) {
-      needsCelebration = true
-      celebrationLevel = proximityAnalysis.isVeryClose ? 'medium' : 'light'
-    }
+    const { progress } = this.extractProgressMarkers(fullResponse)
+    const needsCelebration = responseType === 'solved' || responseType === 'close' || (progress !== null && progress >= 90)
+    const celebrationLevel = responseType === 'solved' ? 'full' : (responseType === 'close' || (progress !== null && progress >= 75)) ? 'medium' : 'none'
 
     return {
       content: fullResponse,
       type: responseType,
-      memo: memoAnalysis,
-      proximity: proximityAnalysis,
       needsCelebration,
       celebrationLevel
     }
