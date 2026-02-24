@@ -2,6 +2,18 @@
   <div class="profile-view">
     <h1>我的进度</h1>
 
+    <!-- 个人信息 -->
+    <div v-if="authStore.user" class="user-info-card">
+      <div class="user-avatar">{{ authStore.userName.charAt(0).toUpperCase() }}</div>
+      <div class="user-details">
+        <div class="user-name">{{ authStore.userName }}</div>
+        <div class="user-meta">
+          <span>{{ authStore.userEmail }}</span>
+          <span v-if="authStore.user.created_at">{{ formatDate(authStore.user.created_at) }} 加入</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 统计卡片 -->
     <div v-if="progressStore.stats" class="stats-grid">
       <div class="stat-card">
@@ -131,6 +143,52 @@ onMounted(async () => {
   font-size: 2rem;
   margin-bottom: 2rem;
   text-align: center;
+}
+
+.user-info-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.user-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-gold), #8a7535);
+  color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.user-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
 }
 
 .stats-grid {

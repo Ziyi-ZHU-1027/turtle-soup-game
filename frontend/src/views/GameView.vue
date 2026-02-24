@@ -91,6 +91,7 @@
             :clues="gameStore.confirmedClues"
             :solved="gameStore.solved"
             :session-ended="sessionEnded"
+            :user-name="authStore.userName"
             @send-message="handleSendMessage"
             @hint-action="handleHintAction"
             @reveal="revealSolution"

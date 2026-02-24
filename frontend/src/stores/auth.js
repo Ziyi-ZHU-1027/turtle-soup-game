@@ -8,6 +8,8 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref(null)
 
   const isAuthenticated = computed(() => !!user.value || isGuest.value)
+  const userName = computed(() => user.value?.user_metadata?.name || user.value?.email?.split('@')[0] || '侦探')
+  const userEmail = computed(() => user.value?.email || '')
   const isAdmin = computed(() => {
     if (!user.value?.email) return false
     const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || []
@@ -118,6 +120,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isAdmin,
     isGuest,
+    userName,
+    userEmail,
     initialize,
     login,
     loginAsGuest,

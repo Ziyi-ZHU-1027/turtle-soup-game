@@ -131,14 +131,15 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
-const activeTab = ref('login')
+const activeTab = ref(route.query.tab === 'register' ? 'register' : 'login')
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
@@ -193,8 +194,10 @@ const handleSubmit = async () => {
       if (result.success) {
         console.log('登录成功:', result.user)
 
-        // 检查是否为管理员
-        if (authStore.isAdmin) {
+        const redirectPath = route.query.redirect
+        if (redirectPath) {
+          router.push(redirectPath)
+        } else if (authStore.isAdmin) {
           console.log('管理员登录成功，跳转到管理后台')
           router.push('/admin')
         } else {
@@ -213,22 +216,24 @@ const handleSubmit = async () => {
 
         if (result.needsConfirmation) {
           error.value = '注册成功！请检查邮箱验证邮件'
+          // 切换到登录标签
+          activeTab.value = 'login'
+          // 清空表单
+          form.name = ''
+          form.email = ''
+          form.password = ''
+          form.confirmPassword = ''
         } else {
-          // 自动登录成功
-          if (authStore.isAdmin) {
+          // 自动登录成功，跳转
+          const redirectPath = route.query.redirect
+          if (redirectPath) {
+            router.push(redirectPath)
+          } else if (authStore.isAdmin) {
             router.push('/admin')
           } else {
             router.push('/')
           }
         }
-
-        // 切换到登录标签
-        activeTab.value = 'login'
-        // 清空表单
-        form.name = ''
-        form.email = ''
-        form.password = ''
-        form.confirmPassword = ''
       } else {
         error.value = result.error || '注册失败，请重试'
       }

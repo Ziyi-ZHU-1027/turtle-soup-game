@@ -9,8 +9,11 @@
           用你的问题，揭开谜底
         </p>
         <div class="hero-actions">
-          <router-link to="/game" class="btn-primary">
+          <router-link v-if="authStore.isAuthenticated" to="/game" class="btn-primary">
             开始游戏
+          </router-link>
+          <router-link v-else to="/tutorial" class="btn-primary">
+            立即体验
           </router-link>
           <router-link to="/login" class="btn-secondary" v-if="!authStore.user">
             登录/注册
@@ -72,6 +75,10 @@
               <p>当接近真相时，可以尝试说出完整故事或查看汤底</p>
             </div>
           </div>
+        </div>
+        <div class="tutorial-cta" v-if="!authStore.isAuthenticated">
+          <p>想亲自体验？</p>
+          <router-link to="/tutorial" class="btn-tutorial">开始互动教程</router-link>
         </div>
       </div>
     </div>
@@ -272,6 +279,38 @@ const authStore = useAuthStore()
 .step-content p {
   color: var(--text-muted);
   line-height: 1.6;
+}
+
+.tutorial-cta {
+  text-align: center;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.tutorial-cta p {
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.btn-tutorial {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: 1.5px solid rgba(212, 175, 55, 0.4);
+  color: var(--accent-gold);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.btn-tutorial:hover {
+  background: rgba(212, 175, 55, 0.08);
+  border-color: var(--accent-gold);
+  transform: translateY(-2px);
 }
 
 @media (max-width: 768px) {

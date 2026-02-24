@@ -63,6 +63,10 @@ const props = defineProps({
   streamedContent: {
     type: String,
     default: ''
+  },
+  userName: {
+    type: String,
+    default: ''
   }
 })
 
@@ -95,7 +99,7 @@ const avatarIcon = computed(() => {
 const roleName = computed(() => {
   const role = props.message.role || 'user'
   switch (role) {
-    case 'user': return '🕵️ 侦探'
+    case 'user': return props.userName ? `🕵️ ${props.userName}` : '🕵️ 侦探'
     case 'assistant': return '🤖 AI助手'
     case 'system': return '📋 系统'
     default: return role

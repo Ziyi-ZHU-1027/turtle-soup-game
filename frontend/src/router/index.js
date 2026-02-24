@@ -8,6 +8,7 @@ const AdminView = () => import('@/views/AdminView.vue')
 const LoginView = () => import('@/views/LoginView.vue')
 const ShareView = () => import('@/views/ShareView.vue')
 const ProfileView = () => import('@/views/ProfileView.vue')
+const TutorialView = () => import('@/views/TutorialView.vue')
 
 const routes = [
   {
@@ -27,6 +28,12 @@ const routes = [
     name: 'admin',
     component: AdminView,
     meta: { title: '管理后台', requiresAdmin: true }
+  },
+  {
+    path: '/tutorial',
+    name: 'tutorial',
+    component: TutorialView,
+    meta: { title: '新手教程 - 海龟汤' }
   },
   {
     path: '/login',

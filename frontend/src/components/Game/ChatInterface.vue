@@ -66,6 +66,7 @@
             :message="message"
             :is-streaming="streaming && message.isStreaming === true"
             :streamed-content="streamedContent"
+            :user-name="userName"
           />
         </div>
 
@@ -219,6 +220,10 @@ const props = defineProps({
   sessionEnded: {
     type: Boolean,
     default: false
+  },
+  userName: {
+    type: String,
+    default: ''
   }
 })
 

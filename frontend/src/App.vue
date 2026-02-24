@@ -8,13 +8,14 @@
         </router-link>
         <nav class="nav-links">
           <router-link to="/">首页</router-link>
+          <router-link to="/tutorial" v-if="!authStore.isAuthenticated">体验</router-link>
           <router-link to="/game" v-if="authStore.isAuthenticated">游戏</router-link>
           <router-link to="/profile" v-if="authStore.user">进度</router-link>
           <router-link to="/admin" v-if="authStore.isAdmin">管理</router-link>
         </nav>
         <div class="header-right">
           <template v-if="authStore.user">
-            <span class="user-email" :title="authStore.user.email">{{ authStore.user.email }}</span>
+            <span class="user-email" :title="authStore.userEmail">{{ authStore.userName }}</span>
             <button @click="handleLogout" class="btn-logout">退出</button>
           </template>
           <template v-else-if="authStore.isGuest">
