@@ -23,7 +23,7 @@
 
       <div class="login-form">
         <form @submit.prevent="handleSubmit">
-          <div v-if="error" class="error-message">
+          <div v-if="error" :class="['message', isErrorMessage ? 'error-message' : 'success-message']">
             {{ error }}
           </div>
           <div v-if="activeTab === 'register'" class="form-group">
@@ -54,7 +54,7 @@
               id="password"
               v-model="form.password"
               :type="showPassword ? 'text' : 'password'"
-              placeholder="输入密码"
+              placeholder="输入密码（至少6位）"
               required
               minlength="6"
             />
@@ -65,6 +65,7 @@
             >
               {{ showPassword ? '👁️‍🗨️' : '👁️' }}
             </button>
+            <div class="password-hint">密码至少需要6个字符</div>
           </div>
 
           <div v-if="activeTab === 'register'" class="form-group">
@@ -134,6 +135,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import confetti from 'canvas-confetti'
 
 const router = useRouter()
 const route = useRoute()
@@ -143,6 +145,7 @@ const activeTab = ref(route.query.tab === 'register' ? 'register' : 'login')
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
+const isErrorMessage = ref(true)  // 控制错误消息样式
 
 const form = reactive({
   name: '',
@@ -157,6 +160,7 @@ const handleSubmit = async () => {
 
   // 重置错误信息
   error.value = ''
+  isErrorMessage.value = true  // 默认是错误消息
 
   // 表单验证
   if (activeTab.value === 'register') {
@@ -216,15 +220,24 @@ const handleSubmit = async () => {
 
         if (result.needsConfirmation) {
           error.value = '注册成功！请检查邮箱验证邮件'
-          // 切换到登录标签
-          activeTab.value = 'login'
-          // 清空表单
-          form.name = ''
-          form.email = ''
-          form.password = ''
-          form.confirmPassword = ''
+          isErrorMessage.value = false  // 这是成功消息
+          // 放彩带庆祝
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          })
+          // 延迟跳转到游戏页面
+          setTimeout(() => {
+            router.push('/game')
+          }, 2000)
         } else {
-          // 自动登录成功，跳转
+          // 自动登录成功，放彩带并跳转
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          })
           const redirectPath = route.query.redirect
           if (redirectPath) {
             router.push(redirectPath)
@@ -519,14 +532,41 @@ const continueAsGuest = () => {
   left: 0;
 }
 
+.message {
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
 .error-message {
   background-color: rgba(231, 76, 60, 0.1);
   border: 1px solid #e74c3c;
-  border-radius: 6px;
-  padding: 1rem;
   color: #e74c3c;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+}
+
+.success-message {
+  background-color: rgba(46, 204, 113, 0.1);
+  border: 1px solid var(--accent-green);
+  color: var(--accent-green);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.password-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
 }
 
 @media (max-width: 640px) {
