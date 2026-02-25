@@ -205,10 +205,15 @@ router.post('/:sessionId/chat', optionalAuth, async (req, res) => {
           // 提取进度和线索标记
           const { cleanResponse, progress, clues } = aiService.extractProgressMarkers(completeResponse)
 
-          // 添加清理后的AI回复到数据库
-          await conversationService.addMessage(sessionId, 'assistant', cleanResponse)
-
           const responseType = aiService.analyzeResponseType(completeResponse)
+
+          // 添加清理后的AI回复到数据库（包含线索信息）
+          const messageMetadata = {
+            responseType,
+            progress,
+            clues: clues.length > 0 ? clues : undefined
+          }
+          await conversationService.addMessage(sessionId, 'assistant', cleanResponse, messageMetadata)
 
           // 发送进度事件
           if (progress !== null) {
@@ -296,8 +301,12 @@ router.post('/:sessionId/reveal', optionalAuth, async (req, res) => {
     // 获取谜题汤底
     const puzzle = await puzzleService.getPuzzleById(session.puzzle_id)
 
-    // 更新会话状态
-    await gameSessionService.endSession(sessionId, 'completed')
+    // 更新会话状态（标记为查看汤底）
+    await gameSessionService.updateSession(sessionId, {
+      status: 'completed',
+      reveal_requested: true,
+      end_time: new Date().toISOString()
+    })
 
     // 添加系统消息
     await conversationService.addMessage(

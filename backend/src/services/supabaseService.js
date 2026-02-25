@@ -344,19 +344,27 @@ const progressService = {
   getUserStats: async (userId) => {
     const { data, error } = await supabase
       .from('game_sessions')
-      .select('status, puzzle_id')
+      .select('status, puzzle_id, reveal_requested')
       .eq('user_id', userId)
 
     if (error) throw error
 
     const total = data.length
-    const completed = data.filter(s => s.status === 'completed').length
+    const completed = data.filter(s => s.status === 'completed' && !s.reveal_requested).length
     const abandoned = data.filter(s => s.status === 'abandoned').length
     const active = data.filter(s => s.status === 'active').length
     const uniquePuzzles = new Set(data.map(s => s.puzzle_id)).size
-    const solveRate = total > 0 ? Math.round((completed / total) * 100) : 0
 
-    return { total, completed, abandoned, active, uniquePuzzles, solveRate }
+    // 计算真正通过推理解决的谜题数（不包括查看汤底的）
+    const uniquePuzzlesTried = new Set(data.map(s => s.puzzle_id)).size
+    const puzzlesSolved = new Set(
+      data
+        .filter(s => s.status === 'completed' && !s.reveal_requested)
+        .map(s => s.puzzle_id)
+    ).size
+    const solveRate = uniquePuzzlesTried > 0 ? Math.round((puzzlesSolved / uniquePuzzlesTried) * 100) : 0
+
+    return { total, completed, abandoned, active, uniquePuzzles: uniquePuzzlesTried, solveRate }
   },
 
   // 获取每个谜题的最佳状态
@@ -387,22 +395,94 @@ const progressService = {
   },
 
   // 获取分页历史列表
-  getUserHistory: async (userId, page = 1, limit = 10) => {
+  getUserHistory: async (userId, page = 1, limit = 10, grouped = false) => {
     const from = (page - 1) * limit
     const to = from + limit - 1
 
-    const { data, error, count } = await supabase
-      .from('game_sessions')
-      .select('id, status, start_time, end_time, puzzle:puzzles (id, title, difficulty, tags)', { count: 'exact' })
-      .eq('user_id', userId)
-      .order('start_time', { ascending: false })
-      .range(from, to)
+    if (grouped) {
+      // 按谜题分组的历史记录
+      // 1. 获取所有会话及其谜题信息
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('game_sessions')
+        .select('id, status, start_time, end_time, consecutive_no_count, hints_used, reveal_requested, puzzle_id, puzzle:puzzles (id, title, difficulty, tags)')
+        .eq('user_id', userId)
+        .order('start_time', { ascending: false })
 
-    if (error) throw error
+      if (sessionsError) throw sessionsError
 
-    return {
-      data,
-      pagination: { page, limit, total: count, totalPages: Math.ceil(count / limit) }
+      // 2. 按谜题分组
+      const groupedByPuzzle = {}
+
+      for (const session of sessions) {
+        const puzzleId = session.puzzle_id
+
+        if (!groupedByPuzzle[puzzleId]) {
+          groupedByPuzzle[puzzleId] = {
+            puzzle: session.puzzle,
+            sessions: [],
+            latestSession: session,
+            totalSessions: 0,
+            solvedCount: 0,
+            activeCount: 0
+          }
+        }
+
+        groupedByPuzzle[puzzleId].sessions.push(session)
+        groupedByPuzzle[puzzleId].totalSessions++
+
+        if (session.status === 'completed' && !session.reveal_requested) {
+          groupedByPuzzle[puzzleId].solvedCount++
+        }
+        if (session.status === 'active') {
+          groupedByPuzzle[puzzleId].activeCount++
+        }
+      }
+
+      // 3. 获取每个会话的最新消息（用于预览）
+      for (const puzzleGroup of Object.values(groupedByPuzzle)) {
+        for (const session of puzzleGroup.sessions) {
+          const { data: messages } = await supabase
+            .from('conversations')
+            .select('role, content, created_at')
+            .eq('session_id', session.id)
+            .order('created_at', { ascending: true })
+            .limit(10)
+
+          session.messages = messages || []
+        }
+      }
+
+      // 4. 转换为数组格式并按最新会话时间排序
+      const groupedArray = Object.entries(groupedByPuzzle).map(([puzzleId, group]) => ({
+        puzzleId,
+        ...group
+      })).sort((a, b) => new Date(b.latestSession.start_time) - new Date(a.latestSession.start_time))
+
+      // 5. 分页处理
+      const total = groupedArray.length
+      const paginatedData = groupedArray.slice(from, to + 1)
+
+      return {
+        data: paginatedData,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        grouped: true
+      }
+    } else {
+      // 原有的非分组逻辑
+      const { data, error, count } = await supabase
+        .from('game_sessions')
+        .select('id, status, start_time, end_time, puzzle:puzzles (id, title, difficulty, tags)', { count: 'exact' })
+        .eq('user_id', userId)
+        .order('start_time', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+
+      return {
+        data,
+        pagination: { page, limit, total: count, totalPages: Math.ceil(count / limit) },
+        grouped: false
+      }
     }
   }
 }

@@ -55,7 +55,7 @@
                 class="puzzle-item"
                 :class="{ active: selectedPuzzleId === puzzle.id }"
                 @click="selectPuzzle(puzzle)"
-                :disabled="gameStore.currentSession"
+                :disabled="gameStore.currentSession && !gameEnded"
               >
                 <div class="puzzle-title-row">
                   <h4>{{ puzzle.title }}</h4>
@@ -119,6 +119,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { usePuzzleStore } from '@/stores/puzzles'
 import { useGameStore } from '@/stores/game'
 import { useAuthStore } from '@/stores/auth'
@@ -126,6 +127,8 @@ import { useProgressStore } from '@/stores/progress'
 import { apiClient } from '@/services/api'
 import ChatInterface from '@/components/Game/ChatInterface.vue'
 
+const route = useRoute()
+const router = useRouter()
 const puzzleStore = usePuzzleStore()
 const gameStore = useGameStore()
 const authStore = useAuthStore()
@@ -136,6 +139,12 @@ const hintMessage = ref('')
 const puzzleListCollapsed = ref(true)
 const showCelebration = ref(false)
 const shareToast = ref('')
+
+// 游戏是否已结束
+const gameEnded = computed(() => {
+  const status = gameStore.currentSession?.status
+  return status === 'completed' || status === 'abandoned' || gameStore.solved
+})
 
 // 谜题状态标签
 const puzzleStatusLabel = (status) => {
@@ -177,20 +186,33 @@ const loadPuzzles = async () => {
   }
 }
 
-// 选择谜题并开始游戏
+// 选择谜题并加载最新对话
 const selectPuzzle = async (puzzle) => {
-  if (gameStore.currentSession) {
+  if (gameStore.currentSession && !gameEnded.value) {
     if (!confirm('当前有进行中的游戏，是否要放弃当前游戏开始新游戏？')) {
       return
     }
+    await gameStore.resetGame()
+  } else if (gameStore.currentSession && gameEnded.value) {
+    // Auto-reset for ended games
     await gameStore.resetGame()
   }
 
   try {
     selectedPuzzleId.value = puzzle.id
+
+    // Check if there's an existing session for this puzzle
+    if (authStore.user && progressStore.puzzleStatuses[puzzle.id]) {
+      const sessionInfo = progressStore.puzzleStatuses[puzzle.id]
+      // Load the existing session
+      await loadExistingSession(sessionInfo.session_id)
+      return
+    }
+
+    // No existing session, start a new game
     await gameStore.startGame(puzzle.id)
   } catch (error) {
-    console.error('开始游戏失败:', error)
+    console.error('加载游戏失败:', error)
     selectedPuzzleId.value = null
   }
 }
@@ -246,6 +268,30 @@ const surrenderGame = async () => {
   }
 }
 
+// 加载现有游戏会话
+const loadExistingSession = async (sessionId) => {
+  try {
+    const res = await apiClient.game.getSession(sessionId)
+    const sessionData = res.data || res
+
+    if (sessionData.session && sessionData.messages) {
+      // Use the new setExistingSession method
+      gameStore.setExistingSession(
+        sessionData.session,
+        sessionData.session.puzzle,
+        sessionData.messages
+      )
+
+      // Update selected puzzle ID
+      selectedPuzzleId.value = sessionData.session.puzzle_id
+    }
+  } catch (error) {
+    console.error('加载游戏会话失败:', error)
+    // If loading fails, redirect to game page without session
+    router.replace('/game')
+  }
+}
+
 // 分享游戏
 const handleShare = async () => {
   if (!gameStore.currentSession) return
@@ -270,7 +316,7 @@ const sessionEnded = computed(() => {
 
 // 重置游戏
 const resetGame = () => {
-  if (gameStore.currentSession && !confirm('确定要重置游戏吗？当前进度将丢失。')) return
+  if (gameStore.currentSession && !gameEnded.value && !confirm('确定要重置游戏吗？当前进度将丢失。')) return
   gameStore.resetGame()
   selectedPuzzleId.value = null
   hintMessage.value = ''
@@ -312,9 +358,16 @@ watch(() => gameStore.messages, (msgs) => {
 }, { deep: true })
 
 
-// 组件挂载时加载谜题
-onMounted(() => {
-  loadPuzzles()
+// 组件挂载时加载谜题或现有会话
+onMounted(async () => {
+  await loadPuzzles()
+
+  // Check if there's a sessionId in query params
+  const sessionId = route.query.sessionId
+  if (sessionId) {
+    await loadExistingSession(sessionId)
+  }
+
   if (authStore.user) {
     progressStore.fetchPuzzleStatuses()
   }

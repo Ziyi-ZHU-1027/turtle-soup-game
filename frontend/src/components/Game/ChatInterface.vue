@@ -89,6 +89,16 @@
             </button>
           </div>
         </div>
+
+        <!-- 游戏结束操作 -->
+        <div v-if="isGameEnded" class="game-ended-actions">
+          <div class="game-ended-message">
+            {{ solved ? '🎉 恭喜破案！' : '游戏已结束' }}
+          </div>
+          <button @click="$emit('new-game')" class="btn-select-new-puzzle">
+            🎯 选择新谜题
+          </button>
+        </div>
       </div>
     </div>
 
@@ -257,6 +267,11 @@ const canSend = computed(() => {
 
 const questionCount = computed(() => {
   return props.messages.filter(m => m.role === 'user').length
+})
+
+// 游戏是否已结束
+const isGameEnded = computed(() => {
+  return props.solved || props.sessionEnded
 })
 
 // 动态 Placeholder
@@ -473,7 +488,7 @@ onUnmounted(() => {
   letter-spacing: 0.3px;
   white-space: pre-wrap;
   transition: max-height 0.3s ease, padding 0.3s ease;
-  max-height: 200px;
+  max-height: none;
   overflow-y: auto;
   position: relative;
   z-index: 1;
@@ -483,6 +498,25 @@ onUnmounted(() => {
   max-height: 0;
   padding: 0;
   overflow: hidden;
+}
+
+/* Optional: Add a subtle scrollbar styling */
+.tangmian-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tangmian-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+.tangmian-body::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.3);
+  border-radius: 3px;
+}
+
+.tangmian-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.5);
 }
 
 /* ===== 破案进度条 ===== */
@@ -648,7 +682,9 @@ onUnmounted(() => {
 }
 
 .message-wrapper.system {
-  align-self: center;
+  align-self: flex-start;
+  width: 100%;
+  max-width: 90%;
 }
 
 @keyframes fadeIn {
@@ -665,6 +701,40 @@ onUnmounted(() => {
 .loading-indicator {
   align-self: flex-start;
   padding: 1rem;
+}
+
+.game-ended-actions {
+  text-align: center;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(42, 157, 143, 0.05));
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: var(--radius);
+  align-self: center;
+  width: 100%;
+  max-width: 90%;
+}
+
+.game-ended-message {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--accent-gold);
+  margin-bottom: 1rem;
+}
+
+.btn-select-new-puzzle {
+  padding: 0.75rem 2rem;
+  background: linear-gradient(135deg, var(--accent-gold), #b8941f);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.3s;
+}
+
+.btn-select-new-puzzle:hover {
+  transform: scale(1.05);
 }
 
 .typing-indicator {

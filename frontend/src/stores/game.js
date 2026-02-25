@@ -304,6 +304,61 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  // 设置现有游戏会话
+  const setExistingSession = (sessionData, puzzleData, messageHistory) => {
+    currentSession.value = sessionData
+    currentPuzzle.value = puzzleData
+    messages.value = messageHistory || []
+    loading.value = false
+    error.value = null
+    streaming.value = false
+    streamedResponse.value = ''
+
+    // 从消息历史中恢复进度和线索
+    let restoredProgress = 0
+    const restoredClues = []
+
+    if (messageHistory && messageHistory.length > 0) {
+      // 查找进度相关消息
+      messageHistory.forEach(msg => {
+        if (msg.role === 'system' && msg.content.includes('当前进度')) {
+          // 提取进度百分比
+          const progressMatch = msg.content.match(/(\d+)%/)
+          if (progressMatch) {
+            restoredProgress = parseInt(progressMatch[1])
+          }
+        }
+
+        // 查找线索消息
+        if (msg.role === 'assistant') {
+          // 从 metadata 中获取线索
+          if (msg.metadata && msg.metadata.clues) {
+            restoredClues.push(...msg.metadata.clues)
+          }
+
+          // 从消息本身的属性获取线索（兼容性）
+          if (msg.clues) {
+            restoredClues.push(...msg.clues)
+          }
+
+          // 检查是否是接近答案的消息（增加进度）
+          if (msg.responseType === 'close' || msg.responseType === 'partial') {
+            restoredProgress = Math.max(restoredProgress, 60)
+          }
+        }
+      })
+
+      // 根据消息数量估算基础进度
+      const questionCount = messageHistory.filter(m => m.role === 'user').length
+      restoredProgress = Math.max(restoredProgress, Math.min(questionCount * 5, 80))
+    }
+
+    progress.value = restoredProgress
+    confirmedClues.value = restoredClues
+
+    solved.value = sessionData.status === 'completed' && !sessionData.reveal_requested
+  }
+
   // 重置游戏状态
   const resetGame = () => {
     currentSession.value = null
@@ -371,6 +426,7 @@ export const useGameStore = defineStore('game', () => {
     revealSolution,
     surrenderGame,
     fetchSession,
+    setExistingSession,
     resetGame,
     getQuestionCount,
     getConsecutiveNoCount,

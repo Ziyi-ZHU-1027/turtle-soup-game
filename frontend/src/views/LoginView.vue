@@ -63,7 +63,7 @@
               class="toggle-password"
               @click="showPassword = !showPassword"
             >
-              {{ showPassword ? '👁️‍🗨️' : '👁️' }}
+              {{ showPassword ? '👁️‍🗨️' : '🔒' }}
             </button>
             <div class="password-hint">密码至少需要6个字符</div>
           </div>

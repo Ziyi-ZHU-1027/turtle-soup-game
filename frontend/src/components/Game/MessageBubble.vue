@@ -132,7 +132,7 @@ const statusIcon = computed(() => {
     case 'sending': return '⏳'
     case 'sent': return '✓'
     case 'delivered': return '✓✓'
-    case 'read': return '👁️'
+    case 'read': return '✓'
     case 'error': return '❌'
     default: return '•'
   }
@@ -200,17 +200,19 @@ const renderMarkdown = (content) => {
 .message-bubble {
   display: flex;
   gap: 0.6rem;
-  max-width: 90%;
+  width: 100%;
   animation: fadeIn 0.3s ease;
 }
 
 .role-user {
   flex-direction: row-reverse;
   margin-left: auto;
+  max-width: 80%;
 }
 
 .role-assistant, .role-system {
   flex-direction: row;
+  max-width: 90%;
 }
 
 .message-avatar {
@@ -247,8 +249,12 @@ const renderMarkdown = (content) => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  min-width: 0;
   flex: 1;
+}
+
+.role-user .message-content {
+  min-width: auto;
+  max-width: none;
 }
 
 .role-user .message-content {
@@ -342,6 +348,7 @@ const renderMarkdown = (content) => {
 .role-system .message-body {
   background-color: rgba(128, 133, 150, 0.08);
   border-color: rgba(128, 133, 150, 0.12);
+  border-left: 2px solid rgba(128, 133, 150, 0.3);
 }
 
 /* ===== 回复类型视觉分化 ===== */

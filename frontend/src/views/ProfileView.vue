@@ -16,14 +16,6 @@
 
     <!-- 统计卡片 -->
     <div v-if="progressStore.stats" class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-value">{{ progressStore.stats.total }}</div>
-        <div class="stat-label">总局数</div>
-      </div>
-      <div class="stat-card stat-completed">
-        <div class="stat-value">{{ progressStore.stats.completed }}</div>
-        <div class="stat-label">已完成</div>
-      </div>
       <div class="stat-card stat-rate">
         <div class="stat-value">{{ progressStore.stats.solveRate }}%</div>
         <div class="stat-label">通关率</div>
@@ -47,26 +39,48 @@
         <router-link to="/game" class="btn-start">开始游戏</router-link>
       </div>
       <div v-else class="history-list">
+        <!-- Chronological sessions -->
         <div
           v-for="session in progressStore.history"
           :key="session.id"
-          class="history-item"
+          class="session-item"
+          @click="selectSession(session)"
         >
-          <div class="history-info">
-            <div class="history-title">{{ session.puzzle?.title || '未知谜题' }}</div>
-            <div class="history-meta">
-              <span v-if="session.puzzle?.difficulty" class="difficulty">
-                {{ '★'.repeat(session.puzzle.difficulty) }}
-              </span>
-              <span class="history-date">{{ formatDate(session.start_time) }}</span>
-              <span v-if="session.end_time" class="history-duration">
-                用时 {{ formatDuration(session.start_time, session.end_time) }}
+          <!-- Always visible: essential info -->
+          <div class="session-primary">
+            <div class="puzzle-info">
+              <h4>{{ session.puzzle?.title || '未知谜题' }}</h4>
+              <span class="session-date">{{ formatDate(session.start_time) }}</span>
+            </div>
+            <div class="session-status">
+              <span class="status-icon" :class="getStatusClass(session)">
+                {{ getStatusIcon(session) }}
               </span>
             </div>
           </div>
-          <span class="status-badge" :class="`status-${session.status}`">
-            {{ statusLabel(session.status) }}
-          </span>
+
+          <!-- Expanded details: shown on click -->
+          <div v-if="expandedSessions.has(session.id)" class="session-details">
+            <div class="detail-meta">
+              <span v-if="session.end_time">时长: {{ formatDuration(session.start_time, session.end_time) }}</span>
+              <span>对话: {{ session.message_count || 0 }} 条</span>
+            </div>
+
+            <!-- Optional conversation preview -->
+            <ConversationPreview
+              v-if="progressStore.detailedHistory[session.id]?.messages"
+              :messages="progressStore.detailedHistory[session.id].messages"
+            />
+
+            <!-- Continue button only for active games -->
+            <button
+              v-if="session.status === 'active'"
+              @click.stop="continueGame(session.id)"
+              class="btn-continue"
+            >
+              继续游戏
+            </button>
+          </div>
         </div>
       </div>
 
@@ -74,14 +88,14 @@
       <div v-if="progressStore.historyPagination.totalPages > 1" class="pagination">
         <button
           :disabled="progressStore.historyPagination.page <= 1"
-          @click="progressStore.fetchHistory(progressStore.historyPagination.page - 1)"
+          @click="progressStore.fetchHistory(progressStore.historyPagination.page - 1, false)"
         >上一页</button>
         <span class="page-info">
           {{ progressStore.historyPagination.page }} / {{ progressStore.historyPagination.totalPages }}
         </span>
         <button
           :disabled="progressStore.historyPagination.page >= progressStore.historyPagination.totalPages"
-          @click="progressStore.fetchHistory(progressStore.historyPagination.page + 1)"
+          @click="progressStore.fetchHistory(progressStore.historyPagination.page + 1, false)"
         >下一页</button>
       </div>
     </div>
@@ -89,17 +103,33 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useProgressStore } from '@/stores/progress'
+import ConversationPreview from '@/components/Game/ConversationPreview.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const progressStore = useProgressStore()
 
-const statusLabel = (status) => {
-  return { completed: '已完成', active: '进行中', abandoned: '已放弃' }[status] || '未知'
+const expandedSessions = ref(new Set())
+
+const getStatusClass = (session) => {
+  if (session.status === 'completed') {
+    return session.reveal_requested ? 'status-revealed' : 'status-solved'
+  }
+  return `status-${session.status}`
+}
+
+const getStatusIcon = (session) => {
+  if (session.status === 'completed') {
+    return session.reveal_requested ? '📖' : '⭐'
+  }
+  return {
+    active: '▶️',
+    abandoned: '⏹️'
+  }[session.status] || '❓'
 }
 
 const formatDate = (dateStr) => {
@@ -118,6 +148,49 @@ const formatDuration = (start, end) => {
   return `${hours}小时${mins > 0 ? mins + '分钟' : ''}`
 }
 
+const toggleSessionDetails = (sessionId) => {
+  if (expandedSessions.value.has(sessionId)) {
+    expandedSessions.value.delete(sessionId)
+  } else {
+    expandedSessions.value.add(sessionId)
+    // Load session details if not already loaded
+    if (!progressStore.detailedHistory[sessionId]) {
+      progressStore.fetchSessionDetails(sessionId)
+    }
+  }
+}
+
+const selectSession = async (session) => {
+  // Load the selected session and navigate to game
+  try {
+    await progressStore.fetchSessionDetails(session.id)
+    router.push({
+      path: '/game',
+      query: { sessionId: session.id }
+    })
+  } catch (error) {
+    console.error('加载会话失败:', error)
+  }
+}
+
+const continueGame = async (sessionId) => {
+  try {
+    // Load session details first
+    await progressStore.fetchSessionDetails(sessionId)
+    const sessionData = progressStore.detailedHistory[sessionId]
+
+    if (sessionData) {
+      // Navigate to game view with session data
+      router.push({
+        path: '/game',
+        query: { sessionId }
+      })
+    }
+  } catch (error) {
+    console.error('继续游戏失败:', error)
+  }
+}
+
 onMounted(async () => {
   if (!authStore.user) {
     router.push('/login')
@@ -125,7 +198,7 @@ onMounted(async () => {
   }
   await Promise.all([
     progressStore.fetchStats(),
-    progressStore.fetchHistory()
+    progressStore.fetchHistory(1, false) // Use non-grouped history
   ])
 })
 </script>
@@ -196,6 +269,9 @@ onMounted(async () => {
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
   margin-bottom: 2.5rem;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .stat-card {
@@ -235,96 +311,143 @@ onMounted(async () => {
 
 .history-section h2 {
   color: var(--text-secondary);
-  font-size: 1.3rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.history-section {
+  margin-bottom: 2rem;
 }
 
 .empty-history {
   text-align: center;
-  padding: 3rem;
+  padding: 3rem 1rem;
   color: var(--text-muted);
+}
+
+.empty-history p {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
 }
 
 .btn-start {
   display: inline-block;
-  margin-top: 1rem;
   padding: 0.75rem 2rem;
-  background: linear-gradient(135deg, var(--accent-gold), #b8941f);
+  background: linear-gradient(135deg, var(--accent-gold), #b89955);
   color: var(--bg-primary);
-  border-radius: var(--radius-sm);
   text-decoration: none;
+  border-radius: var(--radius);
   font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4);
 }
 
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
-.history-item {
+.session-item {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.3s;
+  overflow: hidden;
+}
+
+.session-item:hover {
+  border-color: rgba(212, 175, 55, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.session-primary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+}
+
+.puzzle-info h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 0.25rem 0;
+}
+
+.session-date {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.status-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  padding: 1rem 1.25rem;
-  transition: border-color 0.3s;
-}
-
-.history-item:hover {
-  border-color: var(--border-color-hover);
-}
-
-.history-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.history-title {
-  color: var(--text-secondary);
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.history-meta {
-  display: flex;
-  gap: 0.75rem;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  flex-wrap: wrap;
-}
-
-.difficulty {
-  color: var(--accent-gold);
-}
-
-.status-badge {
-  padding: 0.25rem 0.6rem;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  white-space: nowrap;
+  justify-content: center;
+  font-size: 1rem;
   flex-shrink: 0;
 }
 
-.status-completed {
-  background: rgba(42, 157, 143, 0.15);
-  color: var(--accent-green, #2a9d8f);
+.status-solved {
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--accent-gold);
+}
+
+.status-revealed {
+  background: rgba(74, 127, 255, 0.15);
+  color: var(--accent-blue);
 }
 
 .status-active {
-  background: rgba(212, 175, 55, 0.15);
-  color: var(--accent-gold);
+  background: rgba(42, 157, 143, 0.15);
+  color: var(--accent-green);
 }
 
 .status-abandoned {
   background: rgba(128, 133, 150, 0.15);
   color: var(--text-muted);
+}
+
+.session-details {
+  padding: 0 1.5rem 1.5rem;
+  border-top: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.detail-meta {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.btn-continue {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  background: linear-gradient(135deg, var(--accent-green), #23a089);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 0.75rem;
+}
+
+.btn-continue:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(42, 157, 143, 0.3);
 }
 
 .pagination {
@@ -358,6 +481,28 @@ onMounted(async () => {
 .page-info {
   color: var(--text-muted);
   font-size: 0.9rem;
+}
+
+.btn-load-conversation {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-load-conversation:hover:not(:disabled) {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.btn-load-conversation:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 640px) {

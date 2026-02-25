@@ -7,6 +7,7 @@ export const useProgressStore = defineStore('progress', () => {
   const puzzleStatuses = ref({})
   const history = ref([])
   const historyPagination = ref({ page: 1, limit: 10, total: 0, totalPages: 0 })
+  const detailedHistory = ref({})
   const loading = ref(false)
   const error = ref(null)
 
@@ -39,13 +40,14 @@ export const useProgressStore = defineStore('progress', () => {
     }
   }
 
-  const fetchHistory = async (page = 1) => {
+  const fetchHistory = async (page = 1, grouped = false) => {
     loading.value = true
     error.value = null
     try {
-      const res = await apiClient.progress.history({ page, limit: historyPagination.value.limit })
+      const res = await apiClient.progress.history({ page, limit: historyPagination.value.limit, grouped })
       history.value = res.data
       historyPagination.value = res.pagination
+      return res
     } catch (err) {
       error.value = err
       console.error('获取游戏历史失败:', err)
@@ -54,15 +56,27 @@ export const useProgressStore = defineStore('progress', () => {
     }
   }
 
+  const fetchSessionDetails = async (sessionId) => {
+    try {
+      const res = await apiClient.game.getSession(sessionId)
+      // 后端返回的数据结构是 { success: true, data: { session, messages } }
+      detailedHistory.value[sessionId] = res.data || res
+      return res.data || res
+    } catch (err) {
+      console.error('获取会话详情失败:', err)
+    }
+  }
+
   const reset = () => {
     stats.value = null
     puzzleStatuses.value = {}
     history.value = []
     historyPagination.value = { page: 1, limit: 10, total: 0, totalPages: 0 }
+    detailedHistory.value = {}
   }
 
   return {
-    stats, puzzleStatuses, history, historyPagination, loading, error,
-    fetchStats, fetchPuzzleStatuses, fetchHistory, reset
+    stats, puzzleStatuses, history, historyPagination, detailedHistory, loading, error,
+    fetchStats, fetchPuzzleStatuses, fetchHistory, fetchSessionDetails, reset
   }
 })

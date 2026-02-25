@@ -47,7 +47,8 @@ router.get('/history', requireAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1
     const limit = parseInt(req.query.limit) || 10
-    const result = await progressService.getUserHistory(req.user.id, page, limit)
+    const grouped = req.query.grouped === 'true'
+    const result = await progressService.getUserHistory(req.user.id, page, limit, grouped)
     res.json(result)
   } catch (error) {
     console.error('获取游戏历史失败:', error)

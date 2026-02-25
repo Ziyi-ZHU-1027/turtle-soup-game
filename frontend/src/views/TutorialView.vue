@@ -172,11 +172,8 @@
           </div>
 
           <div class="completion-actions">
-            <button class="btn-primary" @click="startRealGame">
-              立即开始游戏
-            </button>
-            <router-link to="/login?redirect=/game&tab=register" class="btn-tertiary">
-              注册账号保存进度
+            <router-link to="/login?redirect=/game&tab=register" class="btn-primary">
+              开始游戏
             </router-link>
           </div>
         </div>
@@ -959,15 +956,22 @@ onMounted(() => {
   box-shadow: 0 6px 20px rgba(212, 175, 55, 0.3);
 }
 
-.completion-actions .btn-tertiary {
+.completion-actions .btn-secondary {
+  padding: 0.6rem 1.5rem;
+  background: transparent;
   color: var(--text-muted);
-  font-size: 0.85rem;
-  text-decoration: none;
-  transition: color 0.3s;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 
-.completion-actions .btn-tertiary:hover {
+.completion-actions .btn-secondary:hover {
+  border-color: var(--accent-gold);
   color: var(--accent-gold);
+  background-color: rgba(212, 175, 55, 0.05);
 }
 
 .modal-fade-enter-active {
