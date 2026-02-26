@@ -438,17 +438,38 @@ const progressService = {
         }
       }
 
-      // 3. 获取每个会话的最新消息（用于预览）
+      // 3. 批量获取所有会话的消息（优化：解决N+1查询问题）
+      const allSessionIds = sessions.map(s => s.id)
+      let messagesBySession = {}
+
+      if (allSessionIds.length > 0) {
+        const { data: allMessages } = await supabase
+          .from('conversations')
+          .select('role, content, created_at, session_id')
+          .in('session_id', allSessionIds)
+          .order('created_at', { ascending: true })
+          .limit(1000) // 设置合理的上限
+
+        // 在内存中将消息分组到对应会话
+        messagesBySession = {}
+        allMessages.forEach(msg => {
+          if (!messagesBySession[msg.session_id]) {
+            messagesBySession[msg.session_id] = []
+          }
+          if (messagesBySession[msg.session_id].length < 10) {
+            messagesBySession[msg.session_id].push({
+              role: msg.role,
+              content: msg.content,
+              created_at: msg.created_at
+            })
+          }
+        })
+      }
+
+      // 4. 将消息分配给对应会话
       for (const puzzleGroup of Object.values(groupedByPuzzle)) {
         for (const session of puzzleGroup.sessions) {
-          const { data: messages } = await supabase
-            .from('conversations')
-            .select('role, content, created_at')
-            .eq('session_id', session.id)
-            .order('created_at', { ascending: true })
-            .limit(10)
-
-          session.messages = messages || []
+          session.messages = messagesBySession[session.id] || []
         }
       }
 

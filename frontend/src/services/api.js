@@ -15,7 +15,11 @@ const api = axios.create({
 // 请求拦截器：添加认证token
 api.interceptors.request.use(
   async (config) => {
-    console.log(`API请求: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, config)
+    // 只在开发环境打印详细日志
+    if (import.meta.env.DEV) {
+      console.log(`API请求: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
+    }
+
     // 尝试获取认证headers
     try {
       const authHeaders = await getAuthHeaders()
@@ -23,14 +27,21 @@ api.interceptors.request.use(
         ...config.headers,
         ...authHeaders
       }
-      console.log('请求头:', config.headers)
+
+      // 只在开发环境打印请求头（不包含敏感信息）
+      if (import.meta.env.DEV) {
+        console.log('请求头:', {
+          ...config.headers,
+          Authorization: config.headers.Authorization ? '[REDACTED]' : undefined
+        })
+      }
     } catch (error) {
-      console.warn('无法获取认证token:', error)
+      console.warn('无法获取认证token')
     }
     return config
   },
   (error) => {
-    console.error('请求拦截器错误:', error)
+    console.error('请求配置错误')
     return Promise.reject(error)
   }
 )

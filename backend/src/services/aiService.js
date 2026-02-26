@@ -296,7 +296,32 @@ ${puzzle.solution}
       }
     } catch (error) {
       console.error('DeepSeek API调用失败:', error.response?.data || error.message)
-      throw new Error(`AI服务错误: ${error.response?.data?.error?.message || error.message}`)
+
+      // 安全错误处理：避免泄露敏感信息
+      let safeErrorMessage = 'AI服务暂时不可用，请稍后重试'
+
+      if (error.response) {
+        // 根据状态码返回不同的错误信息
+        switch (error.response.status) {
+          case 401:
+            safeErrorMessage = 'AI服务认证失败，请联系管理员'
+            break
+          case 429:
+            safeErrorMessage = 'AI服务请求过于频繁，请稍后重试'
+            break
+          case 500:
+          case 502:
+          case 503:
+            safeErrorMessage = 'AI服务暂时不可用，请稍后重试'
+            break
+          default:
+            safeErrorMessage = '处理请求时发生错误，请重试'
+        }
+      } else if (error.code === 'ECONNABORTED') {
+        safeErrorMessage = 'AI服务响应超时，请重试'
+      }
+
+      throw new Error(safeErrorMessage)
     }
   }
 
@@ -334,8 +359,11 @@ ${puzzle.solution}
       })
 
       stream.on('error', (error) => {
-        console.error('流式响应错误:', error)
-        reject(error)
+        console.error('流式响应错误:', error.message)
+        // 返回安全的错误信息
+        const safeError = new Error('AI服务连接中断，请重试')
+        safeError.code = 'STREAM_ERROR'
+        reject(safeError)
       })
     })
   }

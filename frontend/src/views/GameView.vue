@@ -118,7 +118,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePuzzleStore } from '@/stores/puzzles'
 import { useGameStore } from '@/stores/game'
@@ -170,10 +170,16 @@ const confettiStyle = (i) => {
 }
 
 // 触发庆祝特效
+const celebrationTimer = ref(null)
 const triggerCelebration = () => {
   showCelebration.value = true
-  setTimeout(() => {
+  // 清理之前的定时器
+  if (celebrationTimer.value) {
+    clearTimeout(celebrationTimer.value)
+  }
+  celebrationTimer.value = setTimeout(() => {
     showCelebration.value = false
+    celebrationTimer.value = null
   }, 5000)
 }
 
@@ -371,6 +377,17 @@ onMounted(async () => {
   if (authStore.user) {
     progressStore.fetchPuzzleStatuses()
   }
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  // 清理庆祝特效定时器
+  if (celebrationTimer.value) {
+    clearTimeout(celebrationTimer.value)
+    celebrationTimer.value = null
+  }
+  // 清理其他可能存在的定时器
+  document.body.classList.remove('dawn-effect')
 })
 </script>
 

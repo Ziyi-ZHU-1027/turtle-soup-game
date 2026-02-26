@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import {
   TUTORIAL_PUZZLE,
   PHASES,
@@ -20,6 +20,9 @@ export const useTutorialStore = defineStore('tutorial', () => {
   const coachMessage = ref('')
   const coachVisible = ref(false)
   const questionsInPhase = ref(0)
+
+  // 用于跟踪和清理所有的定时器
+  const timers = ref(new Set())
 
   // 当前阶段配置
   const currentPhase = computed(() => PHASES[phase.value] || PHASES[PHASES.length - 1])
@@ -49,10 +52,12 @@ export const useTutorialStore = defineStore('tutorial', () => {
     })
 
     // 延迟显示 coach
-    setTimeout(() => {
+    const timerId = setTimeout(() => {
       coachMessage.value = currentPhase.value.coachMessage
       coachVisible.value = true
+      timers.value.delete(timerId)
     }, currentPhase.value.coachDelay || 1000)
+    timers.value.add(timerId)
   }
 
   // 发送教程消息（可以是推荐问题ID或自由输入）
@@ -123,11 +128,13 @@ export const useTutorialStore = defineStore('tutorial', () => {
       streaming.value = false
 
       // 延迟后标记完成
-      setTimeout(() => {
+      const completeTimerId = setTimeout(() => {
         isCompleted.value = true
         localStorage.setItem('tutorialCompleted', 'true')
         localStorage.setItem('tutorialCompletedAt', String(Date.now()))
+        timers.value.delete(completeTimerId)
       }, 3000)
+      timers.value.add(completeTimerId)
       return
     }
 
@@ -138,10 +145,12 @@ export const useTutorialStore = defineStore('tutorial', () => {
     loading.value = false
 
     // 延迟显示下一阶段的 coach 消息
-    setTimeout(() => {
+    const coachTimerId = setTimeout(() => {
       coachMessage.value = currentPhase.value.coachMessage
       coachVisible.value = true
+      timers.value.delete(coachTimerId)
     }, currentPhase.value.coachDelay || 800)
+    timers.value.add(coachTimerId)
   }
 
   // 模拟打字动画
@@ -165,6 +174,9 @@ export const useTutorialStore = defineStore('tutorial', () => {
           resolve()
         }
       }, 40)
+
+      // 将interval ID添加到跟踪集合（注意：setInterval返回的也是数字ID）
+      timers.value.add(interval)
     })
   }
 
@@ -178,6 +190,20 @@ export const useTutorialStore = defineStore('tutorial', () => {
       }
     }
   }
+
+  // 清理所有定时器的函数
+  function clearAllTimers() {
+    timers.value.forEach(timerId => {
+      clearTimeout(timerId)
+      clearInterval(timerId)
+    })
+    timers.value.clear()
+  }
+
+  // 在组件卸载时清理定时器
+  onUnmounted(() => {
+    clearAllTimers()
+  })
 
   return {
     // State
@@ -199,6 +225,7 @@ export const useTutorialStore = defineStore('tutorial', () => {
     questionCount,
     // Actions
     startTutorial,
-    sendTutorialMessage
+    sendTutorialMessage,
+    clearAllTimers
   }
 })
